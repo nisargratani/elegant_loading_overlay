@@ -1,0 +1,12 @@
+name: elegant_loading_overlay_example
+description: Example app demonstrating elegant_loading_overlay features.
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  elegant_loading_overlay:
+    path: ../

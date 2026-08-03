@@ -1,0 +1,166 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# ─────────────────────────────────────
+# Generated Dart files (Freezed / JSON)
+# ─────────────────────────────────────
+**/*.g.dart
+**/*.freezed.dart
+lib/firebase_options.dart
+pubspec.lock
+
+# Injectable generated files
+lib/**/injectable.config.dart
+
+# Generated code folders
+lib/generated/
+
+
+# ─────────────────────────────────────
+# IDEs & Editors
+# ─────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+
+# VS Code specific
+.vscode/settings.json
+.vscode/launch.json
+
+# Android Studio / IntelliJ
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+
+# ─────────────────────────────────────
+# Android
+# ─────────────────────────────────────
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/debug.keystore
+
+# Firebase (per flavor)
+android/app/src/**/google-services.json
+
+# ─────────────────────────────────────
+# iOS / macOS
+# ─────────────────────────────────────
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/Flutter.podspec
+ios/Runner/GeneratedPluginRegistrant.*
+
+macos/Pods/
+macos/Flutter/ephemeral/
+macos/Flutter/GeneratedPluginRegistrant.*
+
+# ─────────────────────────────────────
+# Linux / Windows
+# ─────────────────────────────────────
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/
+
+# ─────────────────────────────────────
+# Environment / Secrets
+# ─────────────────────────────────────
+.env
+.env.*
+*.env
+
+# Firebase / Google
+*.p12
+*.pem
+
+# ─────────────────────────────────────
+# Logs & Crash dumps
+# ─────────────────────────────────────
+*.log
+logs/
+crashlytics/
+
+# ─────────────────────────────────────
+# Coverage & Test Artifacts
+# ─────────────────────────────────────
+coverage/
+test/.test_coverage.dart
+
+# ─────────────────────────────────────
+# Custom BizCore App files
+# ─────────────────────────────────────
+# Local DB files (drift / sqflite / hive)
+*.db
+*.sqlite
+*.sqlite3
+*.hive
+*.hive.lock
+
+# Exported reports / invoices
+exports/
+reports/
+
+# Temporary files
+tmp/
+cache/
+
+# ─────────────────────────────────────
+# CI / Build tools
+# ─────────────────────────────────────
+tool/.dart_tool/
+.fastlane/
+
+
+
+# FVM
+.fvm/
+.fvmrc
+
+
+TODO.md
