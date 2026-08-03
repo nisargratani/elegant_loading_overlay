@@ -32,7 +32,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  elegant_loading_overlay: ^1.0.0
+  elegant_loading_overlay: ^0.0.1
 ```
 
 Then run:
