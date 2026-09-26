@@ -3,10 +3,14 @@ description: Example app demonstrating elegant_loading_overlay features.
 publish_to: 'none'
 
 environment:
-  sdk: '>=3.5.0 <4.0.0'
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.22.0'
 
 dependencies:
   flutter:
     sdk: flutter
   elegant_loading_overlay:
     path: ../
+
+dev_dependencies:
+  flutter_lints: '>=4.0.0 <7.0.0'

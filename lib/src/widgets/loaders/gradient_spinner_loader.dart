@@ -43,8 +43,7 @@ class GradientSpinnerLoader extends StatefulWidget {
   final double strokeWidth;
 
   @override
-  State<GradientSpinnerLoader> createState() =>
-      _GradientSpinnerLoaderState();
+  State<GradientSpinnerLoader> createState() => _GradientSpinnerLoaderState();
 }
 
 class _GradientSpinnerLoaderState extends State<GradientSpinnerLoader>
@@ -66,33 +65,33 @@ class _GradientSpinnerLoaderState extends State<GradientSpinnerLoader>
     super.dispose();
   }
 
+  // The painter listens to the controller directly, so each frame
+  // only repaints instead of rebuilding this widget.
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) => CustomPaint(
-          size: Size.square(widget.size),
-          painter: _GradientSpinnerPainter(
-            progress: _controller.value,
-            color: widget.color,
-            strokeWidth: widget.strokeWidth,
-          ),
+  Widget build(BuildContext context) => CustomPaint(
+        size: Size.square(widget.size),
+        painter: _GradientSpinnerPainter(
+          animation: _controller,
+          color: widget.color,
+          strokeWidth: widget.strokeWidth,
         ),
       );
 }
 
 class _GradientSpinnerPainter extends CustomPainter {
   _GradientSpinnerPainter({
-    required this.progress,
+    required this.animation,
     required this.color,
     required this.strokeWidth,
-  });
+  }) : super(repaint: animation);
 
-  final double progress;
+  final Animation<double> animation;
   final Color color;
   final double strokeWidth;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final progress = animation.value;
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width - strokeWidth) / 2;
 
@@ -100,9 +99,11 @@ class _GradientSpinnerPainter extends CustomPainter {
 
     final gradient = SweepGradient(
       colors: [
-        color.withValues(alpha: 0),
-        color.withValues(alpha: 0.3),
-        color.withValues(alpha: 0.7),
+        // 0%, 30% and 70% opacity; withAlpha (not withValues) keeps
+        // Flutter 3.22 support.
+        color.withAlpha(0),
+        color.withAlpha(77),
+        color.withAlpha(179),
         color,
       ],
       stops: const [0.0, 0.3, 0.7, 1.0],
@@ -120,7 +121,7 @@ class _GradientSpinnerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GradientSpinnerPainter oldDelegate) =>
-      progress != oldDelegate.progress ||
+      animation != oldDelegate.animation ||
       color != oldDelegate.color ||
       strokeWidth != oldDelegate.strokeWidth;
 }

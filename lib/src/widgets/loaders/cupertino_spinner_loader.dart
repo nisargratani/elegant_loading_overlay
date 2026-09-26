@@ -28,8 +28,8 @@ import '../../constants/defaults.dart';
 class CupertinoSpinnerLoader extends StatelessWidget {
   /// Creates a Cupertino-style spinner loading indicator.
   ///
-  /// The [color] parameter is available but not used directly by
-  /// [CupertinoActivityIndicator]; it uses the system color.
+  /// The spinner's radius is half of [size]. When [color] is `null`,
+  /// [CupertinoActivityIndicator] uses the system default color.
   const CupertinoSpinnerLoader({
     super.key,
     this.size = LoadingOverlayDefaults.loaderSize,

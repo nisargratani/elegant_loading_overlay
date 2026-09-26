@@ -54,13 +54,12 @@ class _PulseLoaderState extends State<PulseLoader>
       duration: const Duration(milliseconds: 1400),
     )..repeat();
 
-    _scaleAnimation = Tween<double>(begin: 0.4, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-
-    _opacityAnimation = Tween<double>(begin: 1, end: 0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    // drive() avoids creating CurvedAnimations that would need disposal.
+    final eased = CurveTween(curve: Curves.easeInOut);
+    _scaleAnimation =
+        _controller.drive(Tween<double>(begin: 0.4, end: 1).chain(eased));
+    _opacityAnimation =
+        _controller.drive(Tween<double>(begin: 1, end: 0).chain(eased));
   }
 
   @override

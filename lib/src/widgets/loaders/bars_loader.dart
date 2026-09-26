@@ -26,12 +26,14 @@ import '../../constants/defaults.dart';
 ///  * LoaderType.bars, the enum value for this loader.
 class BarsLoader extends StatefulWidget {
   /// Creates an equalizer bars loading indicator.
+  ///
+  /// [barCount] must be at least 1.
   const BarsLoader({
     super.key,
     this.size = LoadingOverlayDefaults.loaderSize,
     this.color = LoadingOverlayDefaults.loaderColor,
     this.barCount = 5,
-  });
+  }) : assert(barCount > 0, 'barCount must be at least 1');
 
   /// The overall size of the loader.
   final double size;
@@ -40,6 +42,8 @@ class BarsLoader extends StatefulWidget {
   final Color color;
 
   /// The number of bars to display.
+  ///
+  /// Bars are narrowed as needed so they always fit within [size].
   final int barCount;
 
   @override
@@ -67,7 +71,12 @@ class _BarsLoaderState extends State<BarsLoader>
 
   @override
   Widget build(BuildContext context) {
-    final barWidth = widget.size / (widget.barCount * 2 - 1);
+    // Each bar takes its width plus 0.3 of it as padding on each side,
+    // so cap the width to keep all bars inside `size` (this only
+    // affects barCount < 3).
+    final count = widget.barCount;
+    final barWidth =
+        math.min(widget.size / (count * 2 - 1), widget.size / (count * 1.6));
     return SizedBox.square(
       dimension: widget.size,
       child: AnimatedBuilder(
@@ -77,16 +86,14 @@ class _BarsLoaderState extends State<BarsLoader>
           crossAxisAlignment: CrossAxisAlignment.end,
           children: List.generate(widget.barCount, (index) {
             final delay = index / widget.barCount;
-            final phase =
-                ((_controller.value + delay) % 1.0) * 2 * math.pi;
+            final phase = ((_controller.value + delay) % 1.0) * 2 * math.pi;
             final heightFactor = 0.3 + 0.7 * ((math.sin(phase) + 1) / 2);
             return Padding(
               padding: EdgeInsets.symmetric(horizontal: barWidth * 0.3),
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: widget.color,
-                  borderRadius:
-                      BorderRadius.all(Radius.circular(barWidth / 2)),
+                  borderRadius: BorderRadius.all(Radius.circular(barWidth / 2)),
                 ),
                 child: SizedBox(
                   width: barWidth,

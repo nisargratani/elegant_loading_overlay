@@ -52,8 +52,8 @@ enum LoadingAnimationType {
 
   /// A rotation transition that spins the overlay into view.
   ///
-  /// The overlay rotates from 0 to 360 degrees while fading
-  /// in when showing, and reverses when hiding.
+  /// The overlay rotates half a turn (180 degrees) into place while
+  /// scaling up and fading in when showing, and reverses when hiding.
   rotation,
 
   /// No animation; the overlay appears and disappears instantly.

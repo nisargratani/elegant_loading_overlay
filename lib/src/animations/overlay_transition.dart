@@ -12,7 +12,8 @@ import '../models/loading_animation_type.dart';
 /// Wraps a child widget with the appropriate transition animation
 /// based on the specified [LoadingAnimationType].
 ///
-/// Uses [AnimationController] from the parent to drive transitions.
+/// Uses the [animation] provided by the parent to drive transitions;
+/// rebuilding this widget does not add listeners to it.
 ///
 /// {@tool snippet}
 /// ```dart
@@ -45,6 +46,21 @@ class OverlayTransition extends StatelessWidget {
   /// The child widget to animate.
   final Widget child;
 
+  // Derived animations are built with drive() rather than
+  // CurvedAnimation: CurvedAnimation registers a status listener on its
+  // parent as soon as it is created, so creating one per build would
+  // leak a listener on every rebuild (e.g. every progress update).
+  static final Animatable<double> _easeOutBack =
+      CurveTween(curve: Curves.easeOutBack);
+  static final Animatable<Offset> _slideUp = Tween<Offset>(
+    begin: const Offset(0, 0.3),
+    end: Offset.zero,
+  ).chain(CurveTween(curve: Curves.easeOutCubic));
+  static final Animatable<double> _zoomIn = Tween<double>(begin: 0.5, end: 1)
+      .chain(CurveTween(curve: Curves.easeOutCubic));
+  static final Animatable<double> _halfTurn = Tween<double>(begin: 0.5, end: 1)
+      .chain(CurveTween(curve: Curves.easeOutCubic));
+
   @override
   Widget build(BuildContext context) {
     switch (animationType) {
@@ -55,10 +71,7 @@ class OverlayTransition extends StatelessWidget {
         );
       case LoadingAnimationType.scale:
         return ScaleTransition(
-          scale: CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutBack,
-          ),
+          scale: animation.drive(_easeOutBack),
           child: FadeTransition(
             opacity: animation,
             child: child,
@@ -66,15 +79,7 @@ class OverlayTransition extends StatelessWidget {
         );
       case LoadingAnimationType.slide:
         return SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 0.3),
-            end: Offset.zero,
-          ).animate(
-            CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            ),
-          ),
+          position: animation.drive(_slideUp),
           child: FadeTransition(
             opacity: animation,
             child: child,
@@ -82,12 +87,7 @@ class OverlayTransition extends StatelessWidget {
         );
       case LoadingAnimationType.zoom:
         return ScaleTransition(
-          scale: Tween<double>(begin: 0.5, end: 1).animate(
-            CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            ),
-          ),
+          scale: animation.drive(_zoomIn),
           child: FadeTransition(
             opacity: animation,
             child: child,
@@ -95,12 +95,7 @@ class OverlayTransition extends StatelessWidget {
         );
       case LoadingAnimationType.rotation:
         return RotationTransition(
-          turns: Tween<double>(begin: 0.5, end: 1).animate(
-            CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            ),
-          ),
+          turns: animation.drive(_halfTurn),
           child: ScaleTransition(
             scale: animation,
             child: FadeTransition(

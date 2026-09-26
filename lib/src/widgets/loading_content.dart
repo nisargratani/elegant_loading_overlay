@@ -30,6 +30,9 @@ class LoadingContent extends StatelessWidget {
   /// The configuration that controls the content appearance.
   final LoadingOverlayConfig config;
 
+  /// 15% opacity for the progress bar track.
+  static const int _trackAlpha = 38;
+
   @override
   Widget build(BuildContext context) {
     // Use custom builder if provided.
@@ -40,17 +43,21 @@ class LoadingContent extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        LoadingIndicator(
-          loaderType: config.loaderType,
-          color: config.loaderColor,
-          size: config.loaderSize,
+        // The loader repaints every frame; isolate it so the card's
+        // shadow and text are not re-recorded with it.
+        RepaintBoundary(
+          child: LoadingIndicator(
+            loaderType: config.loaderType,
+            color: config.loaderColor,
+            size: config.loaderSize,
+          ),
         ),
         if (config.message != null) ...[
           SizedBox(height: config.spacing),
           Text(
             config.message!,
-            style: config.messageStyle ??
-                LoadingOverlayDefaults.messageTextStyle,
+            style:
+                config.messageStyle ?? LoadingOverlayDefaults.messageTextStyle,
             textAlign: TextAlign.center,
           ),
         ],
@@ -68,12 +75,11 @@ class LoadingContent extends StatelessWidget {
           SizedBox(
             width: 180,
             child: ClipRRect(
-              borderRadius:
-                  const BorderRadius.all(Radius.circular(4)),
+              borderRadius: const BorderRadius.all(Radius.circular(4)),
               child: LinearProgressIndicator(
                 value: config.progress!.clamp(0.0, 1.0),
-                backgroundColor:
-                    config.loaderColor.withValues(alpha: 0.15),
+                // withAlpha (not withValues) keeps Flutter 3.22 support.
+                backgroundColor: config.loaderColor.withAlpha(_trackAlpha),
                 valueColor: AlwaysStoppedAnimation<Color>(
                   config.loaderColor,
                 ),

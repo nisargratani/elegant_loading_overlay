@@ -4,6 +4,8 @@
 /// commonly seen in chat applications and modern UIs.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../constants/defaults.dart';
@@ -24,12 +26,14 @@ import '../../constants/defaults.dart';
 ///  * LoaderType.dots, the enum value for this loader.
 class DotsLoader extends StatefulWidget {
   /// Creates a bouncing dots loading indicator.
+  ///
+  /// [dotCount] must be at least 1.
   const DotsLoader({
     super.key,
     this.size = LoadingOverlayDefaults.loaderSize,
     this.color = LoadingOverlayDefaults.loaderColor,
     this.dotCount = 3,
-  });
+  }) : assert(dotCount > 0, 'dotCount must be at least 1');
 
   /// The overall size of the loader.
   final double size;
@@ -38,6 +42,8 @@ class DotsLoader extends StatefulWidget {
   final Color color;
 
   /// The number of dots to display.
+  ///
+  /// Dots are shrunk as needed so they always fit within [size].
   final int dotCount;
 
   @override
@@ -65,7 +71,11 @@ class _DotsLoaderState extends State<DotsLoader>
 
   @override
   Widget build(BuildContext context) {
-    final dotSize = widget.size / 5;
+    // Each dot takes its size plus 0.25 of it as padding on each side,
+    // so shrink dots to keep them inside `size` (only affects
+    // dotCount > 3).
+    final dotSize =
+        math.min(widget.size / 5, widget.size / (widget.dotCount * 1.5));
     return SizedBox(
       width: widget.size,
       height: widget.size / 2,

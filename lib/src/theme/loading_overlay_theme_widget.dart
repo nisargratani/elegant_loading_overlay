@@ -54,9 +54,8 @@ class LoadingOverlayTheme extends InheritedWidget {
   /// ```dart
   /// final theme = LoadingOverlayTheme.of(context);
   /// ```
-  static LoadingOverlayThemeData? of(BuildContext context) => context
-      .dependOnInheritedWidgetOfExactType<LoadingOverlayTheme>()
-      ?.data;
+  static LoadingOverlayThemeData? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<LoadingOverlayTheme>()?.data;
 
   @override
   bool updateShouldNotify(LoadingOverlayTheme oldWidget) =>

@@ -9,12 +9,17 @@ import 'package:flutter/widgets.dart';
 import '../constants/defaults.dart';
 import '../models/loader_type.dart';
 import '../models/loading_animation_type.dart';
+import '../theme/loading_overlay_theme.dart';
 
 /// Immutable configuration for a loading overlay instance.
 ///
 /// This class encapsulates all parameters that can be customized
-/// when showing a loading overlay. It is used internally by the
-/// LoadingOverlayController and passed to the overlay widget.
+/// when showing a loading overlay. It is the value held by a
+/// LoadingOverlayController and is passed to the overlay widget.
+///
+/// A config is used exactly as given: it does not pick up values from
+/// an ambient LoadingOverlayTheme. Use [LoadingOverlayConfig.fromTheme]
+/// to start from a theme and then [copyWith] to customize it.
 ///
 /// {@tool snippet}
 /// Creating a config with a message and progress:
@@ -36,6 +41,8 @@ class LoadingOverlayConfig {
   ///
   /// All parameters are optional and default to values defined
   /// in [LoadingOverlayDefaults].
+  ///
+  /// [spacing], [loaderSize] and [elevation] must not be negative.
   const LoadingOverlayConfig({
     this.message,
     this.subtitle,
@@ -59,7 +66,51 @@ class LoadingOverlayConfig {
     this.onDismiss,
     this.messageStyle,
     this.subtitleStyle,
-  });
+    this.semanticsLabel = LoadingOverlayDefaults.semanticsLabel,
+  })  : assert(spacing >= 0, 'spacing must not be negative'),
+        assert(loaderSize >= 0, 'loaderSize must not be negative'),
+        assert(elevation >= 0, 'elevation must not be negative');
+
+  /// Creates a config from [theme], using [LoadingOverlayDefaults] for
+  /// every value the theme leaves `null` (or for everything when
+  /// [theme] itself is `null`).
+  ///
+  /// This is how LoadingOverlay.show resolves its defaults. Combine it
+  /// with [copyWith] to build a themed config for a scoped overlay:
+  ///
+  /// ```dart
+  /// final theme = LoadingOverlayTheme.of(context);
+  /// LoadingOverlayScope.of(context).show(
+  ///   LoadingOverlayConfig.fromTheme(theme).copyWith(message: 'Saving'),
+  /// );
+  /// ```
+  factory LoadingOverlayConfig.fromTheme(LoadingOverlayThemeData? theme) =>
+      LoadingOverlayConfig(
+        dismissible: theme?.dismissible ?? LoadingOverlayDefaults.dismissible,
+        animationType: theme?.animationType ?? LoadingAnimationType.fade,
+        animationDuration: theme?.animationDuration ??
+            LoadingOverlayDefaults.animationDuration,
+        animationCurve:
+            theme?.animationCurve ?? LoadingOverlayDefaults.animationCurve,
+        barrierColor:
+            theme?.barrierColor ?? LoadingOverlayDefaults.barrierColor,
+        backgroundColor:
+            theme?.backgroundColor ?? LoadingOverlayDefaults.backgroundColor,
+        loaderColor: theme?.loaderColor ?? LoadingOverlayDefaults.loaderColor,
+        blurSigma: theme?.blurSigma ?? LoadingOverlayDefaults.blurSigma,
+        enableBlur: theme?.enableBlur ?? LoadingOverlayDefaults.enableBlur,
+        borderRadius:
+            theme?.borderRadius ?? LoadingOverlayDefaults.borderRadius,
+        padding: theme?.padding ?? LoadingOverlayDefaults.padding,
+        spacing: theme?.spacing ?? LoadingOverlayDefaults.spacing,
+        loaderSize: theme?.loaderSize ?? LoadingOverlayDefaults.loaderSize,
+        elevation: theme?.elevation ?? LoadingOverlayDefaults.elevation,
+        loaderType: theme?.loaderType ?? LoaderType.circular,
+        messageStyle: theme?.messageTextStyle,
+        subtitleStyle: theme?.subtitleTextStyle,
+        semanticsLabel:
+            theme?.semanticsLabel ?? LoadingOverlayDefaults.semanticsLabel,
+      );
 
   /// The primary message displayed below the loader.
   ///
@@ -78,8 +129,10 @@ class LoadingOverlayConfig {
 
   /// The progress value for a determinate loading indicator.
   ///
-  /// Must be between 0.0 and 1.0, or `null` for indeterminate.
-  /// When set, a linear progress indicator is shown below the loader.
+  /// Expected to be between 0.0 and 1.0; values outside that range
+  /// are clamped when displayed. When `null`, no progress bar is shown.
+  /// When set, a linear progress indicator is shown below the loader
+  /// (and message, if any).
   final double? progress;
 
   /// Whether the overlay can be dismissed by tapping outside.
@@ -203,6 +256,13 @@ class LoadingOverlayConfig {
   /// or the theme's text style.
   final TextStyle? subtitleStyle;
 
+  /// The label announced by screen readers for the overlay.
+  ///
+  /// Defaults to [LoadingOverlayDefaults.semanticsLabel]
+  /// (`'Loading overlay'`). Provide a localized string for
+  /// non-English apps.
+  final String semanticsLabel;
+
   /// Creates a copy of this config with the given fields replaced.
   ///
   /// All parameters are optional; only specified parameters will
@@ -230,6 +290,7 @@ class LoadingOverlayConfig {
     VoidCallback? onDismiss,
     TextStyle? messageStyle,
     TextStyle? subtitleStyle,
+    String? semanticsLabel,
   }) =>
       LoadingOverlayConfig(
         message: message ?? this.message,
@@ -254,6 +315,7 @@ class LoadingOverlayConfig {
         onDismiss: onDismiss ?? this.onDismiss,
         messageStyle: messageStyle ?? this.messageStyle,
         subtitleStyle: subtitleStyle ?? this.subtitleStyle,
+        semanticsLabel: semanticsLabel ?? this.semanticsLabel,
       );
 
   @override
@@ -281,7 +343,8 @@ class LoadingOverlayConfig {
         other.builder == builder &&
         other.onDismiss == onDismiss &&
         other.messageStyle == messageStyle &&
-        other.subtitleStyle == subtitleStyle;
+        other.subtitleStyle == subtitleStyle &&
+        other.semanticsLabel == semanticsLabel;
   }
 
   @override
@@ -308,6 +371,7 @@ class LoadingOverlayConfig {
         onDismiss,
         messageStyle,
         subtitleStyle,
+        semanticsLabel,
       ]);
 
   @override

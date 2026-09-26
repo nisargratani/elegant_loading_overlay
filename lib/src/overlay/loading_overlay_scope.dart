@@ -24,7 +24,13 @@ import '../theme/loading_overlay_theme_widget.dart';
 /// - Having multiple independent loading overlays in different
 ///   parts of the app
 /// - Providing different themes to different sections
-/// - Automatic disposal when the scope is removed
+/// - Automatic removal of the overlay when the scope is removed
+/// - Driving an overlay from outside the widget tree by passing your
+///   own [controller]
+///
+/// The scope must be placed below a [Navigator] or [Overlay] (for
+/// example around a page's body, not around `MaterialApp`), because
+/// the overlay is inserted into the nearest Overlay above the scope.
 ///
 /// {@tool snippet}
 /// ```dart
@@ -46,11 +52,13 @@ class LoadingOverlayScope extends StatefulWidget {
   /// Creates a loading overlay scope.
   ///
   /// Optionally provide [theme] to configure the appearance of
-  /// overlays within this scope.
+  /// overlays within this scope, and [controller] to control the
+  /// overlay from outside the widget tree.
   const LoadingOverlayScope({
     required this.child,
     super.key,
     this.theme,
+    this.controller,
   });
 
   /// The widget below this scope in the tree.
@@ -59,32 +67,50 @@ class LoadingOverlayScope extends StatefulWidget {
   /// Optional theme data for overlays within this scope.
   ///
   /// When provided, a [LoadingOverlayTheme] is inserted above
-  /// the child.
+  /// the child, and [LoadingOverlayScopeState.show] uses it when called
+  /// without an explicit config.
   final LoadingOverlayThemeData? theme;
 
-  /// Returns the [LoadingOverlayController] from the nearest
-  /// [LoadingOverlayScope] ancestor.
+  /// An optional controller that drives this scope's overlay.
   ///
-  /// Throws if no [LoadingOverlayScope] is found in the tree.
+  /// Calling `show`, `update`, `toggle` or `hide` on it shows, updates
+  /// or hides the overlay. The scope does not dispose a controller
+  /// passed in here; its owner must. When `null`, the scope creates and
+  /// disposes its own controller.
+  final LoadingOverlayController? controller;
+
+  /// Returns the state of the nearest [LoadingOverlayScope] ancestor,
+  /// which provides `show`, `hide`, `toggle` and `controller`.
+  ///
+  /// Throws a [FlutterError] if no [LoadingOverlayScope] is found in
+  /// the tree. Use [maybeOf] to handle that case.
   ///
   /// ```dart
-  /// final controller = LoadingOverlayScope.of(context);
-  /// controller.show();
+  /// final scope = LoadingOverlayScope.of(context);
+  /// scope.show();
   /// ```
   static LoadingOverlayScopeState of(BuildContext context) {
-    final state =
-        context.findAncestorStateOfType<LoadingOverlayScopeState>();
-    assert(
-      state != null,
-      'No LoadingOverlayScope found in the widget tree. '
-      'Wrap your widget with LoadingOverlayScope.',
-    );
-    return state!;
+    final state = maybeOf(context);
+    if (state == null) {
+      throw FlutterError.fromParts([
+        ErrorSummary('No LoadingOverlayScope found in the widget tree.'),
+        ErrorHint(
+          'Wrap the widget that calls LoadingOverlayScope.of() in a '
+          'LoadingOverlayScope, or use LoadingOverlayScope.maybeOf().',
+        ),
+        context.describeElement('The context used was'),
+      ]);
+    }
+    return state;
   }
 
+  /// Returns the state of the nearest [LoadingOverlayScope] ancestor,
+  /// or `null` if there is none.
+  static LoadingOverlayScopeState? maybeOf(BuildContext context) =>
+      context.findAncestorStateOfType<LoadingOverlayScopeState>();
+
   @override
-  State<LoadingOverlayScope> createState() =>
-      LoadingOverlayScopeState();
+  State<LoadingOverlayScope> createState() => LoadingOverlayScopeState();
 }
 
 /// State for [LoadingOverlayScope].
@@ -92,28 +118,63 @@ class LoadingOverlayScope extends StatefulWidget {
 /// Provides [show], [hide], and [toggle] methods for controlling
 /// the scoped overlay.
 class LoadingOverlayScopeState extends State<LoadingOverlayScope> {
-  final LoadingOverlayController _controller =
-      LoadingOverlayController();
-  final OverlayEntryManager _manager = OverlayEntryManager();
+  LoadingOverlayController? _ownedController;
+  late OverlayEntryManager _manager;
+
+  /// The controller driving this scope's overlay.
+  ///
+  /// This is [LoadingOverlayScope.controller] when provided, otherwise
+  /// a controller owned by this scope. Listen to it to react to the
+  /// overlay being shown or hidden, or call `update` to change the
+  /// visible overlay's config (for example its progress).
+  LoadingOverlayController get controller =>
+      widget.controller ?? (_ownedController ??= LoadingOverlayController());
 
   /// Whether the scoped overlay is currently visible.
   bool get isShowing => _manager.isShowing;
 
-  /// Shows the scoped overlay with an optional [config].
+  @override
+  void initState() {
+    super.initState();
+    _manager = _createManager();
+    // A provided controller may already be showing.
+    if (controller.isShowing) _manager.sync();
+  }
+
+  @override
+  void didUpdateWidget(LoadingOverlayScope oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      _manager.dispose();
+      _manager = _createManager();
+      if (controller.isShowing) _manager.sync();
+    }
+  }
+
+  OverlayEntryManager _createManager() => OverlayEntryManager(
+        controller: controller,
+        resolveHost: () => mounted ? Overlay.maybeOf(context) : null,
+      );
+
+  /// Shows the scoped overlay.
   ///
-  /// Uses the scope's context to find the nearest [Overlay].
+  /// When [config] is `null`, a config is built from this scope's
+  /// [LoadingOverlayScope.theme] (or the nearest [LoadingOverlayTheme]
+  /// above the scope) using [LoadingOverlayConfig.fromTheme]. An
+  /// explicit [config] is used as given.
+  ///
+  /// Uses the scope's context to find the nearest [Overlay]. Does
+  /// nothing if the scope is no longer mounted.
   void show([LoadingOverlayConfig? config]) {
     if (!mounted) return;
-    final effectiveConfig = config ?? const LoadingOverlayConfig();
-    _controller.show(effectiveConfig);
-    _manager.show(context, effectiveConfig);
+    final overlay = Overlay.of(context);
+    _manager.show(overlay, config ?? LoadingOverlayConfig.fromTheme(_theme));
   }
 
   /// Hides the scoped overlay with an exit animation.
-  Future<void> hide() async {
-    _controller.hide();
-    await _manager.hide();
-  }
+  ///
+  /// The returned future completes once the overlay has been removed.
+  Future<void> hide() => _manager.hide();
 
   /// Toggles the scoped overlay visibility.
   Future<void> toggle([LoadingOverlayConfig? config]) async {
@@ -124,24 +185,21 @@ class LoadingOverlayScopeState extends State<LoadingOverlayScope> {
     }
   }
 
+  LoadingOverlayThemeData? get _theme =>
+      widget.theme ??
+      context.getInheritedWidgetOfExactType<LoadingOverlayTheme>()?.data;
+
   @override
   void dispose() {
     _manager.dispose();
-    _controller.dispose();
+    _ownedController?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    var child = widget.child;
-
-    if (widget.theme != null) {
-      child = LoadingOverlayTheme(
-        data: widget.theme!,
-        child: child,
-      );
-    }
-
-    return child;
+    final theme = widget.theme;
+    if (theme == null) return widget.child;
+    return LoadingOverlayTheme(data: theme, child: widget.child);
   }
 }

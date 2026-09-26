@@ -65,36 +65,37 @@ class _RingLoaderState extends State<RingLoader>
     super.dispose();
   }
 
+  // The painter listens to the controller directly, so each frame
+  // only repaints instead of rebuilding this widget.
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) => CustomPaint(
-          size: Size.square(widget.size),
-          painter: _RingPainter(
-            progress: _controller.value,
-            color: widget.color,
-            strokeWidth: widget.strokeWidth,
-          ),
+  Widget build(BuildContext context) => CustomPaint(
+        size: Size.square(widget.size),
+        painter: _RingPainter(
+          animation: _controller,
+          color: widget.color,
+          strokeWidth: widget.strokeWidth,
         ),
       );
 }
 
 class _RingPainter extends CustomPainter {
   _RingPainter({
-    required this.progress,
+    required this.animation,
     required this.color,
     required this.strokeWidth,
-  });
+  }) : super(repaint: animation);
 
-  final double progress;
+  final Animation<double> animation;
   final Color color;
   final double strokeWidth;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final progress = animation.value;
     // Background ring (faded).
     final bgPaint = Paint()
-      ..color = color.withValues(alpha: 0.15)
+      // 15% opacity; withAlpha (not withValues) keeps Flutter 3.22 support.
+      ..color = color.withAlpha(38)
       ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke;
 
@@ -122,7 +123,7 @@ class _RingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_RingPainter oldDelegate) =>
-      progress != oldDelegate.progress ||
+      animation != oldDelegate.animation ||
       color != oldDelegate.color ||
       strokeWidth != oldDelegate.strokeWidth;
 }

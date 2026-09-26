@@ -61,6 +61,7 @@ class LoadingOverlayThemeData with Diagnosticable {
     this.loaderType,
     this.dismissible,
     this.iconColor,
+    this.semanticsLabel,
   });
 
   /// Background color of the loading indicator container.
@@ -152,8 +153,16 @@ class LoadingOverlayThemeData with Diagnosticable {
 
   /// Color for icons displayed in the overlay.
   ///
-  /// When `null`, defaults to [loaderColor].
+  /// The built-in content does not render icons, so this value is not
+  /// read by the package itself. It is provided for custom
+  /// LoadingOverlayConfig.builder implementations, which can read it
+  /// with `LoadingOverlayTheme.of(context)?.iconColor`.
   final Color? iconColor;
+
+  /// Label announced by screen readers for the overlay.
+  ///
+  /// When `null`, defaults to [LoadingOverlayDefaults.semanticsLabel].
+  final String? semanticsLabel;
 
   /// The effective background color, falling back to the default.
   Color get effectiveBackgroundColor =>
@@ -191,6 +200,7 @@ class LoadingOverlayThemeData with Diagnosticable {
     LoaderType? loaderType,
     bool? dismissible,
     Color? iconColor,
+    String? semanticsLabel,
   }) =>
       LoadingOverlayThemeData(
         backgroundColor: backgroundColor ?? this.backgroundColor,
@@ -211,6 +221,7 @@ class LoadingOverlayThemeData with Diagnosticable {
         loaderType: loaderType ?? this.loaderType,
         dismissible: dismissible ?? this.dismissible,
         iconColor: iconColor ?? this.iconColor,
+        semanticsLabel: semanticsLabel ?? this.semanticsLabel,
       );
 
   /// Linearly interpolates between two [LoadingOverlayThemeData].
@@ -233,8 +244,7 @@ class LoadingOverlayThemeData with Diagnosticable {
           TextStyle.lerp(a?.messageTextStyle, b?.messageTextStyle, t),
       subtitleTextStyle:
           TextStyle.lerp(a?.subtitleTextStyle, b?.subtitleTextStyle, t),
-      borderRadius:
-          BorderRadius.lerp(a?.borderRadius, b?.borderRadius, t),
+      borderRadius: BorderRadius.lerp(a?.borderRadius, b?.borderRadius, t),
       padding: EdgeInsets.lerp(a?.padding, b?.padding, t),
       animationDuration: t < 0.5 ? a?.animationDuration : b?.animationDuration,
       animationCurve: t < 0.5 ? a?.animationCurve : b?.animationCurve,
@@ -247,6 +257,7 @@ class LoadingOverlayThemeData with Diagnosticable {
       loaderType: t < 0.5 ? a?.loaderType : b?.loaderType,
       dismissible: t < 0.5 ? a?.dismissible : b?.dismissible,
       iconColor: Color.lerp(a?.iconColor, b?.iconColor, t),
+      semanticsLabel: t < 0.5 ? a?.semanticsLabel : b?.semanticsLabel,
     );
   }
 
@@ -271,7 +282,8 @@ class LoadingOverlayThemeData with Diagnosticable {
         other.elevation == elevation &&
         other.loaderType == loaderType &&
         other.dismissible == dismissible &&
-        other.iconColor == iconColor;
+        other.iconColor == iconColor &&
+        other.semanticsLabel == semanticsLabel;
   }
 
   @override
@@ -294,6 +306,7 @@ class LoadingOverlayThemeData with Diagnosticable {
         loaderType,
         dismissible,
         iconColor,
+        semanticsLabel,
       ]);
 
   @override
@@ -325,7 +338,12 @@ class LoadingOverlayThemeData with Diagnosticable {
           animationDuration,
         ),
       )
+      ..add(DiagnosticsProperty<Curve>('animationCurve', animationCurve))
+      ..add(
+        EnumProperty<LoadingAnimationType>('animationType', animationType),
+      )
       ..add(DoubleProperty('blurSigma', blurSigma))
+      ..add(DiagnosticsProperty<bool>('enableBlur', enableBlur))
       ..add(DoubleProperty('spacing', spacing))
       ..add(DoubleProperty('loaderSize', loaderSize))
       ..add(DoubleProperty('elevation', elevation))
@@ -333,6 +351,7 @@ class LoadingOverlayThemeData with Diagnosticable {
       ..add(
         DiagnosticsProperty<bool>('dismissible', dismissible),
       )
-      ..add(ColorProperty('iconColor', iconColor));
+      ..add(ColorProperty('iconColor', iconColor))
+      ..add(StringProperty('semanticsLabel', semanticsLabel));
   }
 }

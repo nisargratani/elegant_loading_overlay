@@ -7,32 +7,52 @@ on:
     branches: [main]
 
 jobs:
-  analyze-test:
-    name: Analyze & Test
+  stable:
+    name: Stable (format, analyze, test, publish check)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        flutter-version: ['3.22.0', 'stable']
-
     steps:
       - uses: actions/checkout@v4
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ matrix.flutter-version }}
           channel: stable
 
       - name: Install dependencies
         run: flutter pub get
 
       - name: Check formatting
-        run: dart format --set-exit-if-changed .
+        run: dart format --output=none --set-exit-if-changed .
 
-      - name: Analyze
+      - name: Analyze (package and example)
         run: flutter analyze
 
       - name: Run tests
         run: flutter test
 
+      - name: Run tests on the web
+        run: flutter test --platform chrome
+
       - name: Dry run publish
-        run: dart pub publish --dry-run
+        run: flutter pub publish --dry-run
+
+  minimum:
+    name: Minimum supported Flutter (3.22)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.3'
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      # Flutter 3.22's own page transitions leak CurvedAnimations, which
+      # LEGACY_FLUTTER tells the leak tracker to ignore.
+      - name: Run tests
+        run: flutter test --dart-define=LEGACY_FLUTTER=true

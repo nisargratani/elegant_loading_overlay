@@ -69,33 +69,33 @@ class _CircularLoaderState extends State<CircularLoader>
     super.dispose();
   }
 
+  // The painter listens to the controller directly, so each frame
+  // only repaints instead of rebuilding this widget.
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) => CustomPaint(
-          size: Size.square(widget.size),
-          painter: _CircularPainter(
-            progress: _controller.value,
-            color: widget.color,
-            strokeWidth: widget.strokeWidth,
-          ),
+  Widget build(BuildContext context) => CustomPaint(
+        size: Size.square(widget.size),
+        painter: _CircularPainter(
+          animation: _controller,
+          color: widget.color,
+          strokeWidth: widget.strokeWidth,
         ),
       );
 }
 
 class _CircularPainter extends CustomPainter {
   _CircularPainter({
-    required this.progress,
+    required this.animation,
     required this.color,
     required this.strokeWidth,
-  });
+  }) : super(repaint: animation);
 
-  final double progress;
+  final Animation<double> animation;
   final Color color;
   final double strokeWidth;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final progress = animation.value;
     final paint = Paint()
       ..color = color
       ..strokeWidth = strokeWidth
@@ -117,7 +117,7 @@ class _CircularPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_CircularPainter oldDelegate) =>
-      progress != oldDelegate.progress ||
+      animation != oldDelegate.animation ||
       color != oldDelegate.color ||
       strokeWidth != oldDelegate.strokeWidth;
 }

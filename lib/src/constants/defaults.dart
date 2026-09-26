@@ -78,6 +78,9 @@ abstract final class LoadingOverlayDefaults {
     color: Color(0xFF888888),
   );
 
+  /// Default label announced by screen readers for the overlay.
+  static const String semanticsLabel = 'Loading overlay';
+
   /// Whether the overlay is dismissible by tapping outside by default.
   static const bool dismissible = false;
 

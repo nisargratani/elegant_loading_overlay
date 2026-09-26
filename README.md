@@ -3,78 +3,72 @@
 [![pub package](https://img.shields.io/pub/v/elegant_loading_overlay.svg)](https://pub.dev/packages/elegant_loading_overlay)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Flutter](https://img.shields.io/badge/Flutter-%3E%3D3.22-blue.svg)](https://flutter.dev)
-[![Dart](https://img.shields.io/badge/Dart-%3E%3D3.5-blue.svg)](https://dart.dev)
+[![Dart](https://img.shields.io/badge/Dart-%3E%3D3.4-blue.svg)](https://dart.dev)
 
-Beautiful, customizable loading overlay for Flutter with a one-line API. Features 11 built-in loaders, smooth animations, progress indicators, blur backgrounds, theme support, and full platform compatibility.
+A customizable, modal loading overlay for Flutter with a one-line API:
+`LoadingOverlay.show(context: context)` / `LoadingOverlay.hide()`.
 
-## ✨ Features
+It blocks interaction with the screen while work is running and shows one
+of 11 built-in loaders (or your own widget), with optional message,
+subtitle, progress bar, blurred barrier and entry/exit animations. It has
+no dependencies beyond the Flutter SDK.
 
-- 🚀 **One-line API** — `LoadingOverlay.show()` / `LoadingOverlay.hide()`
-- 🎨 **11 Built-in Loaders** — Circular, Dots, Pulse, Ripple, Bars, Cube, Ring, Gradient Spinner, Minimal Spinner, Material Spinner, Cupertino Spinner
-- 🎬 **Smooth Animations** — Fade, Scale, Slide, Zoom, Rotation
-- 🌫️ **Blur Background** — Configurable blur sigma
-- 📊 **Progress Indicators** — Determinate and indeterminate
-- 💬 **Messages & Subtitles** — Customizable text content
-- 🎯 **Custom Builder** — Full control with custom widgets
-- 🎭 **Theme Support** — `LoadingOverlayTheme` for consistent styling
-- 🔒 **Stacking Protection** — Only one overlay at a time
-- ♿ **Accessibility** — Full semantics support
-- 🌍 **Cross-Platform** — Android, iOS, Web, macOS, Windows, Linux
-- 🌙 **Dark Mode** — Fully supported
-- 📱 **Responsive** — Mobile, Tablet, Desktop
-- ⚡ **Performant** — RepaintBoundary, ValueNotifier, const widgets
-- 🧪 **Well Tested** — Comprehensive widget and unit tests
-- 📦 **Zero Dependencies** — Flutter SDK only
+## Features
 
-## 📦 Installation
+- **One-line API**: `LoadingOverlay.show()` / `LoadingOverlay.hide()`, plus
+  `context.showLoadingOverlay()` extensions
+- **11 built-in loaders**: circular, dots, pulse, ripple, bars, cube, ring,
+  gradient spinner, minimal spinner, Material spinner, Cupertino spinner
+- **Animations**: fade, scale, slide, zoom, rotation, or none
+- **Progress**: optional determinate progress bar, updatable in place
+- **Messages**: message and subtitle text
+- **Custom builder**: replace the built-in content with any widget
+- **Theming**: app-wide defaults with `LoadingOverlayTheme`
+- **Scoped overlays**: independent overlays per page with
+  `LoadingOverlayScope`, optionally driven by your own controller
+- **Single overlay**: calling `show()` again updates the visible overlay
+  instead of stacking another one
+- **Accessibility**: a live-region label (localizable), and content behind
+  the overlay is hidden from screen readers while it is visible
+- **Keyboard aware**: the content stays above the on-screen keyboard
+- **All platforms**: Android, iOS, web, macOS, Windows, Linux
 
-Add to your `pubspec.yaml`:
+## Installation
 
 ```yaml
 dependencies:
-  elegant_loading_overlay: ^0.0.1
+  elegant_loading_overlay: ^0.0.3
 ```
-
-Then run:
 
 ```bash
 flutter pub get
 ```
 
-## 🚀 Quick Start
+Requires Flutter 3.22 or newer (Dart 3.4 or newer).
+
+## Quick start
 
 ```dart
 import 'package:elegant_loading_overlay/elegant_loading_overlay.dart';
 
-// Show
 LoadingOverlay.show(context: context);
-
-// Hide
-await LoadingOverlay.hide();
+try {
+  await saveOrder();
+} finally {
+  await LoadingOverlay.hide();
+}
 ```
 
-## 📖 Usage
+Hide the overlay in `finally` so that an exception can never leave it on
+screen.
 
-### Basic Loading
+`context` must be below a `Navigator` (for example any widget inside a
+page of your `MaterialApp`). The overlay is inserted into that Navigator's
+`Overlay` and covers the whole route area.
 
-```dart
-LoadingOverlay.show(context: context);
+## Usage
 
-await doSomeWork();
-
-await LoadingOverlay.hide();
-```
-
-### With Message
-
-```dart
-LoadingOverlay.show(
-  context: context,
-  message: 'Loading...',
-);
-```
-
-### With Message & Subtitle
+### Message and subtitle
 
 ```dart
 LoadingOverlay.show(
@@ -84,14 +78,32 @@ LoadingOverlay.show(
 );
 ```
 
-### With Progress
+### Progress
+
+Pass `progress` (0.0 to 1.0) to show a progress bar. To update it, call
+`show()` again: the visible overlay is updated instead of being replaced.
 
 ```dart
-LoadingOverlay.show(
-  context: context,
-  message: 'Downloading...',
-  progress: 0.45,
-);
+for (var i = 0; i <= 10; i++) {
+  if (!context.mounted) break;
+  LoadingOverlay.show(
+    context: context,
+    message: 'Downloading ${i * 10}%',
+    progress: i / 10,
+  );
+  await downloadChunk(i);
+}
+await LoadingOverlay.hide();
+```
+
+You can also update the visible overlay through the controller, without a
+`BuildContext`:
+
+```dart
+final config = LoadingOverlay.controller.value;
+if (config != null) {
+  LoadingOverlay.controller.update(config.copyWith(progress: 0.8));
+}
 ```
 
 ### Dismissible
@@ -99,23 +111,30 @@ LoadingOverlay.show(
 ```dart
 LoadingOverlay.show(
   context: context,
+  message: 'Tap outside to cancel',
   dismissible: true,
-  onDismiss: () => print('Dismissed!'),
+  onDismiss: () => request.cancel(),
 );
 ```
 
-### Check Status & Toggle
+`onDismiss` is called once, only when the user taps the barrier; it is not
+called when you call `hide()` yourself.
+
+### Status and toggle
 
 ```dart
 if (LoadingOverlay.isShowing) {
   await LoadingOverlay.hide();
 }
 
-// Or toggle
 await LoadingOverlay.toggle(context: context);
 ```
 
-### Custom Animation
+`isShowing` becomes `false` as soon as `hide()` is called, while the exit
+animation is still playing. Calling `show()` during that exit animation
+cancels it and keeps the overlay on screen.
+
+### Animation
 
 ```dart
 LoadingOverlay.show(
@@ -126,31 +145,20 @@ LoadingOverlay.show(
 );
 ```
 
-### Different Loaders
+### Loader type
 
 ```dart
-// Dots loader
-LoadingOverlay.show(
-  context: context,
-  loaderType: LoaderType.dots,
-);
-
-// Pulse loader
-LoadingOverlay.show(
-  context: context,
-  loaderType: LoaderType.pulse,
-);
-
-// Ripple loader
-LoadingOverlay.show(
-  context: context,
-  loaderType: LoaderType.ripple,
-);
-
-// ... and 8 more!
+LoadingOverlay.show(context: context, loaderType: LoaderType.dots);
 ```
 
-### Custom Loader (Builder)
+The loader widgets are also exported (`CircularLoader`, `DotsLoader`,
+`BarsLoader`, ...) and can be used anywhere in your UI, or through
+`LoadingIndicator(loaderType: ...)`.
+
+### Custom content
+
+`builder` replaces the loader, message and progress bar. The result is
+still shown inside the overlay's card (background, padding, elevation).
 
 ```dart
 LoadingOverlay.show(
@@ -166,13 +174,13 @@ LoadingOverlay.show(
 );
 ```
 
-### Blur & Styling
+### Blur and styling
 
 ```dart
 LoadingOverlay.show(
   context: context,
   enableBlur: true,
-  blurSigma: 5.0,
+  blurSigma: 5,
   barrierColor: Colors.black54,
   backgroundColor: Colors.white,
   loaderColor: Colors.teal,
@@ -181,70 +189,116 @@ LoadingOverlay.show(
 );
 ```
 
-### Context Extensions
+Background blur uses a `BackdropFilter`, which is comparatively expensive
+to render. Set `enableBlur: false` (or `blurSigma: 0`) on low-end devices.
+
+### Nested navigators
+
+When `context` is inside a nested `Navigator` (for example a tab with its
+own navigation stack), the overlay only covers that Navigator. Use
+`useRootOverlay: true` to cover the whole app, including a bottom
+navigation bar:
 
 ```dart
-// Show
-context.showLoadingOverlay(message: 'Loading...');
+LoadingOverlay.show(context: context, useRootOverlay: true);
+```
 
-// Hide
+### Calling from `initState`
+
+`show()` can be called from `initState` or during a build; the overlay is
+inserted at the end of the current frame.
+
+```dart
+@override
+void initState() {
+  super.initState();
+  LoadingOverlay.show(context: context, message: 'Loading');
+  _load().whenComplete(LoadingOverlay.hide);
+}
+```
+
+### Context extensions
+
+```dart
+context.showLoadingOverlay(message: 'Loading...');
 context.hideLoadingOverlay();
 ```
 
-## 🎨 Theming
+`showLoadingOverlay` accepts the same parameters as `LoadingOverlay.show`.
 
-Wrap your app with `LoadingOverlayTheme` for consistent styling:
+## Theming
+
+Wrap your app with `LoadingOverlayTheme` to set defaults. Arguments passed
+to `show()` override the theme, and the theme overrides the package
+defaults.
 
 ```dart
 LoadingOverlayTheme(
   data: LoadingOverlayThemeData(
     loaderColor: Colors.tealAccent,
     backgroundColor: Colors.grey.shade900,
-    messageTextStyle: const TextStyle(
-      color: Colors.white,
-      fontSize: 16,
-    ),
-    blurSigma: 5.0,
+    messageTextStyle: const TextStyle(color: Colors.white, fontSize: 16),
+    blurSigma: 5,
     animationDuration: const Duration(milliseconds: 400),
     animationType: LoadingAnimationType.scale,
     loaderType: LoaderType.gradientSpinner,
+    semanticsLabel: 'Please wait', // localize for screen readers
   ),
-  child: MaterialApp(
-    home: MyHomePage(),
-  ),
+  child: MaterialApp(home: MyHomePage()),
 )
 ```
 
-## 🔧 Scoped Overlays
+The default card is white with dark text in both light and dark mode; set
+`backgroundColor` and the text styles in the theme to match a dark theme.
 
-Use `LoadingOverlayScope` for independent overlay control in different parts of your app:
+## Scoped overlays
+
+`LoadingOverlayScope` gives a subtree its own overlay, independent of the
+global `LoadingOverlay`. Its overlay is removed automatically when the
+scope leaves the tree (for example when its page is popped).
 
 ```dart
 LoadingOverlayScope(
-  theme: const LoadingOverlayThemeData(
-    loaderColor: Colors.purple,
-  ),
+  theme: const LoadingOverlayThemeData(loaderColor: Colors.purple),
   child: MyPage(),
 )
 
 // In MyPage:
 final scope = LoadingOverlayScope.of(context);
-scope.show();
+scope.show(); // uses the scope's theme
 await scope.hide();
 ```
 
-## 🎬 Available Animations
+`show()` without arguments uses the scope's theme. An explicit
+`LoadingOverlayConfig` is used as given; start from the theme with
+`LoadingOverlayConfig.fromTheme`:
 
-| Animation | Description |
-|-----------|-------------|
-| `fade` | Smooth fade-in/fade-out (default) |
-| `scale` | Grows from center with bounce |
-| `slide` | Slides up from bottom |
-| `zoom` | Scale + fade combination |
-| `rotation` | Spins into view |
-| `none` | Instant, no animation |
+```dart
+scope.show(
+  LoadingOverlayConfig.fromTheme(LoadingOverlayTheme.of(context))
+      .copyWith(message: 'Saving'),
+);
+```
 
-## 🎡 Built-in Loaders
+Place the scope below `MaterialApp` (for example around a page), because
+its overlay is inserted into the nearest `Overlay` above the scope.
+
+### Driving a scope from outside the widget tree
+
+Pass your own `LoadingOverlayController` to control the overlay from a
+view model or service. The scope does not dispose a controller you pass
+in.
+
+```dart
+final controller = LoadingOverlayController();
+
+LoadingOverlayScope(controller: controller, child: const MyPage());
+
+controller.show(const LoadingOverlayConfig(message: 'Syncing'));
+controller.hide();
+```
+
+## Built-in loaders
 
 | Loader | Description |
 |--------|-------------|
@@ -253,104 +307,122 @@ await scope.hide();
 | `pulse` | Pulsing circle |
 | `ripple` | Expanding ripple rings |
 | `bars` | Equalizer-style bars |
-| `cube` | Rotating 3D cube |
-| `ring` | Spinning ring with gap |
+| `cube` | Rotating 3D square |
+| `ring` | Spinning arc on a faded ring |
 | `gradientSpinner` | Gradient arc spinner |
 | `minimalSpinner` | Thin line spinner |
-| `materialSpinner` | Material CircularProgressIndicator |
-| `cupertinoSpinner` | iOS CupertinoActivityIndicator |
+| `materialSpinner` | Material `CircularProgressIndicator` |
+| `cupertinoSpinner` | iOS `CupertinoActivityIndicator` |
 
-## 📐 API Reference
+## Animations
 
-### LoadingOverlay (Static API)
+| Animation | Description |
+|-----------|-------------|
+| `fade` | Fade in and out (default) |
+| `scale` | Grows from the center with a slight overshoot |
+| `slide` | Slides up from below |
+| `zoom` | Scales from half size while fading in |
+| `rotation` | Turns half a rotation into place while scaling in |
+| `none` | No card animation (the barrier still fades) |
 
-| Method | Description |
+## API reference
+
+### `LoadingOverlay`
+
+| Member | Description |
 |--------|-------------|
-| `show({required context, ...})` | Show the overlay |
-| `hide()` | Hide the overlay |
-| `toggle({context, ...})` | Toggle visibility |
-| `isShowing` | Check if overlay is visible |
-| `of(context)` | Get theme data from context |
-| `controller` | Access global controller |
+| `show({required context, ...})` | Shows the overlay, or updates the visible one |
+| `hide()` | Hides with the exit animation; the future completes when removed |
+| `toggle({context, message, loaderType})` | Hides if showing, otherwise shows |
+| `isShowing` | Whether an overlay is visible and not animating out |
+| `controller` | The global `LoadingOverlayController` |
+| `of(context)` | The nearest `LoadingOverlayThemeData`, or `null` |
 
-### LoadingOverlayConfig
+### Options
 
-All configuration options for `show()`:
+Accepted by `LoadingOverlay.show`, `context.showLoadingOverlay` and
+`LoadingOverlayConfig` (where `animation` is called `animationType`).
+`useRootOverlay` exists only on the two `show` methods.
 
 | Parameter | Type | Default |
 |-----------|------|---------|
 | `message` | `String?` | `null` |
 | `subtitle` | `String?` | `null` |
-| `progress` | `double?` | `null` |
+| `progress` | `double?` | `null` (no progress bar) |
 | `dismissible` | `bool` | `false` |
-| `animationType` | `LoadingAnimationType` | `fade` |
-| `animationDuration` | `Duration` | `300ms` |
-| `animationCurve` | `Curve` | `easeInOut` |
-| `barrierColor` | `Color` | `Colors.black54` |
+| `animation` / `animationType` | `LoadingAnimationType` | `fade` |
+| `animationDuration` | `Duration` | 300 ms |
+| `animationCurve` | `Curve` | `Curves.easeInOut` |
+| `barrierColor` | `Color` | `Color(0x80000000)` (50% black) |
 | `backgroundColor` | `Color` | `Colors.white` |
-| `loaderColor` | `Color` | `Colors.blue` |
+| `loaderColor` | `Color` | `Color(0xFF2196F3)` (Material blue) |
 | `blurSigma` | `double` | `3.0` |
 | `enableBlur` | `bool` | `true` |
-| `borderRadius` | `BorderRadius` | `16.0` |
-| `padding` | `EdgeInsets` | `32.0` |
+| `borderRadius` | `BorderRadius` | 16 |
+| `padding` | `EdgeInsets` | 32 on all sides |
 | `spacing` | `double` | `16.0` |
 | `loaderSize` | `double` | `48.0` |
 | `elevation` | `double` | `8.0` |
 | `loaderType` | `LoaderType` | `circular` |
 | `builder` | `WidgetBuilder?` | `null` |
 | `onDismiss` | `VoidCallback?` | `null` |
+| `messageStyle` | `TextStyle?` | 16 px, medium, dark grey |
+| `subtitleStyle` | `TextStyle?` | 13 px, grey |
+| `semanticsLabel` | `String` | `'Loading overlay'` |
+| `useRootOverlay` | `bool` | `false` |
 
-## 🌍 Platform Support
+All defaults are available as constants on `LoadingOverlayDefaults`.
 
-| Platform | Supported |
-|----------|-----------|
-| Android | ✅ |
-| iOS | ✅ |
-| Web | ✅ |
-| macOS | ✅ |
-| Windows | ✅ |
-| Linux | ✅ |
+## Testing your app
 
-## ⚡ Performance Notes
+The built-in loaders animate forever, so `tester.pumpAndSettle()` times out
+while an overlay is visible. Pump a fixed duration instead:
 
-- Uses `RepaintBoundary` to isolate overlay repaints
-- `ValueNotifier`-based controller avoids stream overhead
-- `const` constructors used throughout
-- `CustomPainter`-based loaders for efficient rendering
-- Stacking protection prevents duplicate overlay creation
+```dart
+LoadingOverlay.show(context: context);
+await tester.pump();
+await tester.pump(const Duration(milliseconds: 500));
+expect(find.byType(CircularLoader), findsOneWidget);
+```
 
-## ❓ FAQ
+Likewise, `await LoadingOverlay.hide()` waits for the exit animation, which
+only advances while frames are pumped. In widget tests, start the hide and
+then pump:
 
-**Q: Can I show multiple overlays at once?**
-A: The global `LoadingOverlay` API enforces single-overlay mode. Use `LoadingOverlayScope` for independent overlays in different subtrees.
+```dart
+unawaited(LoadingOverlay.hide());
+await tester.pump();
+await tester.pump(const Duration(milliseconds: 500));
+```
 
-**Q: What happens if I call `hide()` without calling `show()`?**
-A: Nothing. The method safely returns without error.
+## Behavior notes and limitations
 
-**Q: What happens if I call `show()` twice?**
-A: The existing overlay is updated with the new configuration — no duplicate overlay is created.
+- **One global overlay.** `LoadingOverlay` shows at most one overlay at a
+  time. Use `LoadingOverlayScope` for independent overlays.
+- **System back button.** The overlay blocks taps but not the Android back
+  button or browser back navigation. If the user navigates back, the global
+  overlay stays until you call `hide()` (a scoped overlay is removed with
+  its page). Wrap the page in `PopScope` if back navigation must be blocked
+  while loading.
+- **Host removed.** If the `Navigator` hosting the overlay is removed from
+  the tree, the overlay is dropped and `isShowing` becomes `false`; the next
+  `show()` works normally.
+- **`controller.show()` without a context** reuses the `Overlay` of the most
+  recent `LoadingOverlay.show()` call. Before the first `show()` call there
+  is no Overlay to use, and an error is reported instead. Do not dispose
+  `LoadingOverlay.controller`.
 
-**Q: Does it work with `Navigator.push`?**
-A: Yes. The overlay is inserted into the root `Overlay` and appears above all routes.
+## Platform support
 
-**Q: Does it support keyboard avoidance?**
-A: Yes. The overlay content is properly positioned to avoid keyboard overlap.
+The package is pure Dart and Flutter, with no platform channels. It works
+on Android, iOS, web, macOS, Windows and Linux.
 
-## 🗺️ Roadmap
+## Contributing
 
-- [ ] Shimmer effect loader
-- [ ] Lottie animation support
-- [ ] Progress stream support
-- [ ] Global configuration
-- [ ] Timeout with auto-dismiss
-- [ ] Success/Error state transitions
-- [ ] Haptic feedback option
-- [ ] Sound effect option
+Contributions are welcome. Please read the
+[contributing guide](CONTRIBUTING.md) and the
+[code of conduct](CODE_OF_CONDUCT.md) first.
 
-## 🤝 Contributing
+## License
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) first.
-
-## 📄 License
-
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+MIT; see [LICENSE](LICENSE).

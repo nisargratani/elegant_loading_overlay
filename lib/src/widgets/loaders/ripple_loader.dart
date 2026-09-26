@@ -24,12 +24,14 @@ import '../../constants/defaults.dart';
 ///  * LoaderType.ripple, the enum value for this loader.
 class RippleLoader extends StatefulWidget {
   /// Creates a ripple rings loading indicator.
+  ///
+  /// [ringCount] must be at least 1.
   const RippleLoader({
     super.key,
     this.size = LoadingOverlayDefaults.loaderSize,
     this.color = LoadingOverlayDefaults.loaderColor,
     this.ringCount = 2,
-  });
+  }) : assert(ringCount > 0, 'ringCount must be at least 1');
 
   /// The maximum size of the ripple.
   final double size;

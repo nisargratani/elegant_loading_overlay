@@ -133,24 +133,6 @@ coverage/
 test/.test_coverage.dart
 
 # ─────────────────────────────────────
-# Custom BizCore App files
-# ─────────────────────────────────────
-# Local DB files (drift / sqflite / hive)
-*.db
-*.sqlite
-*.sqlite3
-*.hive
-*.hive.lock
-
-# Exported reports / invoices
-exports/
-reports/
-
-# Temporary files
-tmp/
-cache/
-
-# ─────────────────────────────────────
 # CI / Build tools
 # ─────────────────────────────────────
 tool/.dart_tool/

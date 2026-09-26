@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/widgets.dart';
 
+import '../constants/defaults.dart';
 import '../controller/loading_overlay_controller.dart';
 import '../models/loader_type.dart';
 import '../models/loading_animation_type.dart';
@@ -61,6 +62,17 @@ import '../theme/loading_overlay_theme_widget.dart';
 /// );
 /// ```
 ///
+/// ## Always hide, even on errors
+///
+/// ```dart
+/// LoadingOverlay.show(context: context);
+/// try {
+///   await fetchData();
+/// } finally {
+///   await LoadingOverlay.hide();
+/// }
+/// ```
+///
 /// See also:
 ///
 ///  * [LoadingOverlayController], for programmatic control.
@@ -69,14 +81,23 @@ import '../theme/loading_overlay_theme_widget.dart';
 ///  * [LoadingAnimationType], for animation options.
 ///  * [LoaderType], for built-in loader styles.
 abstract final class LoadingOverlay {
-  static final OverlayEntryManager _manager = OverlayEntryManager();
   static final LoadingOverlayController _controller =
       LoadingOverlayController();
+  // Weak, so a Navigator that has been removed from the tree can be
+  // garbage collected together with its routes.
+  static WeakReference<OverlayState>? _host;
+  static final OverlayEntryManager _manager = OverlayEntryManager(
+    controller: _controller,
+    resolveHost: () => _host?.target,
+  );
 
   /// Whether a loading overlay is currently visible.
   ///
   /// Returns `true` when [show] has been called and [hide] has not
-  /// yet been called.
+  /// yet been called. Becomes `false` as soon as [hide] is called
+  /// (while the exit animation is still playing), when the overlay is
+  /// dismissed by a barrier tap, or when the [Overlay] hosting it is
+  /// removed from the tree.
   ///
   /// ```dart
   /// if (LoadingOverlay.isShowing) {
@@ -87,24 +108,47 @@ abstract final class LoadingOverlay {
 
   /// The global controller instance.
   ///
-  /// Use this for advanced control scenarios, such as listening
-  /// to state changes.
+  /// Its value is the config of the visible overlay, or `null` when
+  /// hidden. Listen to it to react to state changes, or drive the
+  /// visible overlay with it:
   ///
   /// ```dart
   /// LoadingOverlay.controller.addListener(() {
-  ///   print('Overlay state changed');
+  ///   debugPrint('Overlay showing: ${LoadingOverlay.controller.isShowing}');
   /// });
+  ///
+  /// // Update progress without rebuilding the whole config:
+  /// final config = LoadingOverlay.controller.value;
+  /// if (config != null) {
+  ///   LoadingOverlay.controller.update(config.copyWith(progress: 0.8));
+  /// }
   /// ```
+  ///
+  /// `controller.show()` reuses the [Overlay] of the most recent [show]
+  /// call; before the first [show] there is no Overlay to use and an
+  /// error is reported. Do not dispose this controller.
   static LoadingOverlayController get controller => _controller;
 
   /// Shows a loading overlay.
   ///
   /// The [context] parameter is required to find the nearest
-  /// [Overlay] in the widget tree. All other parameters are
-  /// optional and override the defaults or theme values.
+  /// [Overlay] in the widget tree (normally the one of the enclosing
+  /// [Navigator]). Set [useRootOverlay] to `true` to use the root
+  /// Overlay instead, so the overlay also covers widgets outside a
+  /// nested Navigator (for example a bottom navigation bar).
   ///
-  /// If an overlay is already showing, it will be updated with
-  /// the new configuration instead of creating a duplicate.
+  /// All other parameters are optional and override the values of the
+  /// nearest [LoadingOverlayTheme], which in turn override
+  /// [LoadingOverlayDefaults].
+  ///
+  /// If an overlay is already showing, it is updated with the new
+  /// configuration instead of creating a duplicate; calling [show]
+  /// repeatedly is the simplest way to update a message or [progress].
+  /// If it is animating out, the exit is cancelled.
+  ///
+  /// It is safe to call this from `initState` or during a build; the
+  /// overlay is then inserted at the end of the current frame. Does
+  /// nothing if [context] is no longer mounted.
   ///
   /// ```dart
   /// LoadingOverlay.show(
@@ -143,89 +187,67 @@ abstract final class LoadingOverlay {
     VoidCallback? onDismiss,
     TextStyle? messageStyle,
     TextStyle? subtitleStyle,
+    String? semanticsLabel,
+    bool useRootOverlay = false,
   }) {
     if (!context.mounted) return;
 
-    // Resolve theme values.
-    final theme = LoadingOverlayTheme.of(context);
+    final overlay = Overlay.of(context, rootOverlay: useRootOverlay);
+    // A plain lookup (no dependency) so that show() also works from
+    // initState and does not make the caller rebuild on theme changes.
+    final theme =
+        context.getInheritedWidgetOfExactType<LoadingOverlayTheme>()?.data;
+    final base = LoadingOverlayConfig.fromTheme(theme);
 
     final config = LoadingOverlayConfig(
       message: message,
       subtitle: subtitle,
       progress: progress,
-      dismissible:
-          dismissible ?? theme?.dismissible ?? false,
-      animationType:
-          animation ?? theme?.animationType ?? LoadingAnimationType.fade,
-      animationDuration: animationDuration ??
-          theme?.animationDuration ??
-          const LoadingOverlayConfig().animationDuration,
-      animationCurve: animationCurve ??
-          theme?.animationCurve ??
-          const LoadingOverlayConfig().animationCurve,
-      barrierColor: barrierColor ??
-          theme?.barrierColor ??
-          const LoadingOverlayConfig().barrierColor,
-      backgroundColor: backgroundColor ??
-          theme?.backgroundColor ??
-          const LoadingOverlayConfig().backgroundColor,
-      loaderColor: loaderColor ??
-          theme?.loaderColor ??
-          const LoadingOverlayConfig().loaderColor,
-      blurSigma: blurSigma ??
-          theme?.blurSigma ??
-          const LoadingOverlayConfig().blurSigma,
-      enableBlur: enableBlur ??
-          theme?.enableBlur ??
-          const LoadingOverlayConfig().enableBlur,
-      borderRadius: borderRadius ??
-          theme?.borderRadius ??
-          const LoadingOverlayConfig().borderRadius,
-      padding: padding ??
-          theme?.padding ??
-          const LoadingOverlayConfig().padding,
-      spacing: spacing ??
-          theme?.spacing ??
-          const LoadingOverlayConfig().spacing,
-      loaderSize: loaderSize ??
-          theme?.loaderSize ??
-          const LoadingOverlayConfig().loaderSize,
-      elevation: elevation ??
-          theme?.elevation ??
-          const LoadingOverlayConfig().elevation,
-      loaderType: loaderType ??
-          theme?.loaderType ??
-          const LoadingOverlayConfig().loaderType,
+      dismissible: dismissible ?? base.dismissible,
+      animationType: animation ?? base.animationType,
+      animationDuration: animationDuration ?? base.animationDuration,
+      animationCurve: animationCurve ?? base.animationCurve,
+      barrierColor: barrierColor ?? base.barrierColor,
+      backgroundColor: backgroundColor ?? base.backgroundColor,
+      loaderColor: loaderColor ?? base.loaderColor,
+      blurSigma: blurSigma ?? base.blurSigma,
+      enableBlur: enableBlur ?? base.enableBlur,
+      borderRadius: borderRadius ?? base.borderRadius,
+      padding: padding ?? base.padding,
+      spacing: spacing ?? base.spacing,
+      loaderSize: loaderSize ?? base.loaderSize,
+      elevation: elevation ?? base.elevation,
+      loaderType: loaderType ?? base.loaderType,
       builder: builder,
       onDismiss: onDismiss,
-      messageStyle:
-          messageStyle ?? theme?.messageTextStyle,
-      subtitleStyle:
-          subtitleStyle ?? theme?.subtitleTextStyle,
+      messageStyle: messageStyle ?? base.messageStyle,
+      subtitleStyle: subtitleStyle ?? base.subtitleStyle,
+      semanticsLabel: semanticsLabel ?? base.semanticsLabel,
     );
 
-    _controller.show(config);
-    _manager.show(context, config);
+    _host = WeakReference(overlay);
+    _manager.show(overlay, config);
   }
 
   /// Hides the loading overlay with an exit animation.
   ///
-  /// Does nothing if no overlay is currently showing.
+  /// The returned future completes once the overlay has been removed
+  /// (or immediately if nothing is showing). If [show] is called while
+  /// the exit animation is running, the overlay stays visible and the
+  /// future completes right away.
   ///
   /// ```dart
-  /// LoadingOverlay.hide();
+  /// await LoadingOverlay.hide();
   /// ```
-  static Future<void> hide() async {
-    _controller.hide();
-    await _manager.hide();
-  }
+  static Future<void> hide() => _manager.hide();
 
   /// Toggles the loading overlay visibility.
   ///
   /// If an overlay is showing, it will be hidden. If no overlay
   /// is showing, one will be displayed with the given parameters.
   ///
-  /// The [context] is required when showing (not when hiding).
+  /// The [context] is required when showing (not when hiding); without
+  /// it, calling [toggle] while hidden does nothing.
   ///
   /// ```dart
   /// LoadingOverlay.toggle(context: context);

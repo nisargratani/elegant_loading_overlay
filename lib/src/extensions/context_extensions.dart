@@ -5,6 +5,8 @@
 /// state directly from a [BuildContext].
 library;
 
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import '../models/loader_type.dart';
@@ -62,6 +64,8 @@ extension LoadingOverlayContextExtension on BuildContext {
     VoidCallback? onDismiss,
     TextStyle? messageStyle,
     TextStyle? subtitleStyle,
+    String? semanticsLabel,
+    bool useRootOverlay = false,
   }) {
     LoadingOverlay.show(
       context: this,
@@ -87,18 +91,21 @@ extension LoadingOverlayContextExtension on BuildContext {
       onDismiss: onDismiss,
       messageStyle: messageStyle,
       subtitleStyle: subtitleStyle,
+      semanticsLabel: semanticsLabel,
+      useRootOverlay: useRootOverlay,
     );
   }
 
   /// Hides the loading overlay.
   ///
   /// This is a convenience method equivalent to calling
-  /// [LoadingOverlay.hide].
+  /// [LoadingOverlay.hide]. Use [LoadingOverlay.hide] directly if you
+  /// need to await the end of the exit animation.
   ///
   /// ```dart
   /// context.hideLoadingOverlay();
   /// ```
   void hideLoadingOverlay() {
-    LoadingOverlay.hide();
+    unawaited(LoadingOverlay.hide());
   }
 }
