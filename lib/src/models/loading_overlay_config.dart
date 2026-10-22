@@ -266,7 +266,17 @@ class LoadingOverlayConfig {
   /// Creates a copy of this config with the given fields replaced.
   ///
   /// All parameters are optional; only specified parameters will
-  /// be changed in the returned copy.
+  /// be changed in the returned copy. Passing `null` keeps the current
+  /// value, so to remove an optional value set the matching flag
+  /// instead: [clearMessage], [clearSubtitle], [clearProgress],
+  /// [clearBuilder] or [clearOnDismiss]. A flag takes precedence over a
+  /// value passed for the same field.
+  ///
+  /// ```dart
+  /// // Remove the progress bar from the visible overlay.
+  /// final config = LoadingOverlay.controller.value!;
+  /// LoadingOverlay.controller.update(config.copyWith(clearProgress: true));
+  /// ```
   LoadingOverlayConfig copyWith({
     String? message,
     String? subtitle,
@@ -291,11 +301,16 @@ class LoadingOverlayConfig {
     TextStyle? messageStyle,
     TextStyle? subtitleStyle,
     String? semanticsLabel,
+    bool clearMessage = false,
+    bool clearSubtitle = false,
+    bool clearProgress = false,
+    bool clearBuilder = false,
+    bool clearOnDismiss = false,
   }) =>
       LoadingOverlayConfig(
-        message: message ?? this.message,
-        subtitle: subtitle ?? this.subtitle,
-        progress: progress ?? this.progress,
+        message: clearMessage ? null : message ?? this.message,
+        subtitle: clearSubtitle ? null : subtitle ?? this.subtitle,
+        progress: clearProgress ? null : progress ?? this.progress,
         dismissible: dismissible ?? this.dismissible,
         animationType: animationType ?? this.animationType,
         animationDuration: animationDuration ?? this.animationDuration,
@@ -311,8 +326,8 @@ class LoadingOverlayConfig {
         loaderSize: loaderSize ?? this.loaderSize,
         elevation: elevation ?? this.elevation,
         loaderType: loaderType ?? this.loaderType,
-        builder: builder ?? this.builder,
-        onDismiss: onDismiss ?? this.onDismiss,
+        builder: clearBuilder ? null : builder ?? this.builder,
+        onDismiss: clearOnDismiss ? null : onDismiss ?? this.onDismiss,
         messageStyle: messageStyle ?? this.messageStyle,
         subtitleStyle: subtitleStyle ?? this.subtitleStyle,
         semanticsLabel: semanticsLabel ?? this.semanticsLabel,

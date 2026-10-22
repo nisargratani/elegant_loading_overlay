@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.4] - 2026-10-22
+
+No code changes are required when upgrading. Because `^0.0.3` only allows
+`0.0.3`, update your constraint to `^0.0.4`.
+
+### Fixed
+
+- The system back button (Android back, browser back,
+  `Navigator.maybePop`) no longer pops the page behind a visible overlay.
+  A non-dismissible overlay ignores it; a dismissible overlay is dismissed
+  and calls `onDismiss`. Applies to `LoadingOverlay` and
+  `LoadingOverlayScope`. Programmatic `Navigator.pop()` is not blocked.
+- Keyboard focus is trapped in the overlay while it is visible, so Tab,
+  Enter and Space can no longer activate widgets behind it. Focus returns
+  to the previously focused widget when the overlay is removed.
+- The overlay card no longer overflows on small screens, with large text
+  scales or with the on-screen keyboard open. It is limited to the safe
+  area above the keyboard and its content scrolls when it does not fit.
+- `CupertinoSpinnerLoader` (and `LoaderType.cupertinoSpinner`) no longer
+  throws an assertion at size 0.
+- Calling `show()` from `onDismiss` (for example to show a retry message)
+  now keeps the new overlay visible instead of hiding it immediately.
+- `show(useRootOverlay: true)` while an overlay is already visible in a
+  nested Navigator now moves it to the root Overlay (without replaying the
+  entry animation).
+- `controller.show()` with no Overlay available still reports an error,
+  and now also resets the controller to hidden, so `controller.isShowing`
+  and `LoadingOverlay.isShowing` agree.
+
+### Added
+
+- `clearMessage`, `clearSubtitle`, `clearProgress`, `clearBuilder` and
+  `clearOnDismiss` flags on `LoadingOverlayConfig.copyWith`, to remove
+  optional values (for example the progress bar via `controller.update`).
+
+### Deprecated
+
+- `LoadingOverlayThemeData.iconColor` (and its constructor and `copyWith`
+  parameters): it never had any effect. It will be removed in a future
+  release.
+
+### Changed
+
+- While an overlay is visible, keyboard focus moves into it, so a focused
+  text field behind it loses focus (closing the on-screen keyboard) until
+  the overlay is removed.
+- The overlay card keeps a 16 px vertical margin from the screen edges and
+  stays inside the system safe area.
+- README: new "Back button and keyboard" section, clearing fields with
+  `copyWith`, and a rewritten "Testing" section.
+
 ## [0.0.3] - 2026-09-26
 
 No code changes are required when upgrading. Because `^0.0.2` only allows

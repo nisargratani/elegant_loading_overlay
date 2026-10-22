@@ -28,16 +28,19 @@ no dependencies beyond the Flutter SDK.
   `LoadingOverlayScope`, optionally driven by your own controller
 - **Single overlay**: calling `show()` again updates the visible overlay
   instead of stacking another one
+- **Truly modal**: blocks taps, keyboard focus and the system back button
+  while visible (back dismisses the overlay when it is dismissible)
 - **Accessibility**: a live-region label (localizable), and content behind
   the overlay is hidden from screen readers while it is visible
-- **Keyboard aware**: the content stays above the on-screen keyboard
+- **Fits any screen**: the content stays above the on-screen keyboard and
+  scrolls when it does not fit (small screens, large text)
 - **All platforms**: Android, iOS, web, macOS, Windows, Linux
 
 ## Installation
 
 ```yaml
 dependencies:
-  elegant_loading_overlay: ^0.0.3
+  elegant_loading_overlay: ^0.0.4
 ```
 
 ```bash
@@ -106,6 +109,17 @@ if (config != null) {
 }
 ```
 
+`copyWith` keeps the current value when an argument is `null`. To remove
+an optional value, use the matching flag: `clearMessage`, `clearSubtitle`,
+`clearProgress`, `clearBuilder` or `clearOnDismiss`.
+
+```dart
+// Switch from a progress bar to an indeterminate "Finishing up" state.
+LoadingOverlay.controller.update(
+  config.copyWith(message: 'Finishing up', clearProgress: true),
+);
+```
+
 ### Dismissible
 
 ```dart
@@ -117,8 +131,32 @@ LoadingOverlay.show(
 );
 ```
 
-`onDismiss` is called once, only when the user taps the barrier; it is not
-called when you call `hide()` yourself.
+`onDismiss` is called once, when the user taps the barrier or presses the
+system back button; it is not called when you call `hide()` yourself. It
+may call `show()` again (for example to show a retry message); that new
+overlay stays visible.
+
+### Back button and keyboard
+
+While an overlay is visible, the system back button (Android back,
+browser back, `Navigator.maybePop`) does not pop the page behind it:
+
+- a non-dismissible overlay ignores it;
+- a dismissible overlay is dismissed, calling `onDismiss`.
+
+This applies to the top route of the Navigator hosting the overlay (and of
+the root Navigator, when that is a different one). Programmatic
+`Navigator.pop()` is not blocked, so code that pops a page before hiding
+the overlay keeps working. Back navigation works normally again as soon as
+`hide()` is called.
+
+Keyboard focus moves into the overlay while it is visible, so Tab, Enter
+and Space cannot reach widgets behind it. Focusable widgets in a custom
+`builder` (a Cancel button, a text field) work and can be reached with
+Tab. When the overlay is removed, focus returns to the widget that had it
+before, if that widget is still on screen. If a text field had focus, the
+on-screen keyboard closes while the overlay is visible and may reopen
+afterwards.
 
 ### Status and toggle
 
@@ -159,6 +197,11 @@ The loader widgets are also exported (`CircularLoader`, `DotsLoader`,
 
 `builder` replaces the loader, message and progress bar. The result is
 still shown inside the overlay's card (background, padding, elevation).
+
+The card is limited to the space between the system UI and the on-screen
+keyboard; when its content is taller (long messages, large text scale,
+small or landscape screens), the content scrolls inside the card. Content
+that fits is shown exactly as before.
 
 ```dart
 LoadingOverlay.show(
@@ -373,37 +416,46 @@ Accepted by `LoadingOverlay.show`, `context.showLoadingOverlay` and
 
 All defaults are available as constants on `LoadingOverlayDefaults`.
 
-## Testing your app
+## Testing
 
-The built-in loaders animate forever, so `tester.pumpAndSettle()` times out
-while an overlay is visible. Pump a fixed duration instead:
+Two things behave differently in widget tests (`testWidgets`), where time
+only advances when you pump frames:
 
-```dart
-LoadingOverlay.show(context: context);
-await tester.pump();
-await tester.pump(const Duration(milliseconds: 500));
-expect(find.byType(CircularLoader), findsOneWidget);
-```
+1. **Don't use `pumpAndSettle()` while an overlay is visible.** The
+   built-in loaders repeat forever, so there is never a settled frame and
+   `pumpAndSettle()` times out. Pump a fixed duration instead:
 
-Likewise, `await LoadingOverlay.hide()` waits for the exit animation, which
-only advances while frames are pumped. In widget tests, start the hide and
-then pump:
+   ```dart
+   LoadingOverlay.show(context: context);
+   await tester.pump();
+   await tester.pump(const Duration(milliseconds: 500));
+   expect(find.byType(CircularLoader), findsOneWidget);
+   ```
 
-```dart
-unawaited(LoadingOverlay.hide());
-await tester.pump();
-await tester.pump(const Duration(milliseconds: 500));
-```
+2. **Don't `await LoadingOverlay.hide()` without pumping.** Its future
+   completes only after the exit animation, and that animation needs
+   frames. Awaiting it directly deadlocks the test. Start the hide, pump,
+   then await:
+
+   ```dart
+   final f = LoadingOverlay.hide();
+   await tester.pump();
+   await tester.pump(const Duration(milliseconds: 400));
+   await f;
+   ```
+
+   The same applies to `LoadingOverlayScope.of(context).hide()`.
+
+After the overlay is gone, `pumpAndSettle()` works normally again.
 
 ## Behavior notes and limitations
 
 - **One global overlay.** `LoadingOverlay` shows at most one overlay at a
   time. Use `LoadingOverlayScope` for independent overlays.
-- **System back button.** The overlay blocks taps but not the Android back
-  button or browser back navigation. If the user navigates back, the global
-  overlay stays until you call `hide()` (a scoped overlay is removed with
-  its page). Wrap the page in `PopScope` if back navigation must be blocked
-  while loading.
+- **Back button and new routes.** Back is blocked on the routes that were
+  on top when the overlay was shown. If your code pushes another route
+  while the overlay is still visible, back on that new route is not
+  blocked.
 - **Host removed.** If the `Navigator` hosting the overlay is removed from
   the tree, the overlay is dropped and `isShowing` becomes `false`; the next
   `show()` works normally.

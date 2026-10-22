@@ -60,6 +60,7 @@ class LoadingOverlayThemeData with Diagnosticable {
     this.elevation,
     this.loaderType,
     this.dismissible,
+    @Deprecated('Has no effect; will be removed in a future release.')
     this.iconColor,
     this.semanticsLabel,
   });
@@ -151,12 +152,12 @@ class LoadingOverlayThemeData with Diagnosticable {
   /// When `null`, defaults to [LoadingOverlayDefaults.dismissible].
   final bool? dismissible;
 
-  /// Color for icons displayed in the overlay.
+  /// Not used by the package.
   ///
-  /// The built-in content does not render icons, so this value is not
-  /// read by the package itself. It is provided for custom
-  /// LoadingOverlayConfig.builder implementations, which can read it
-  /// with `LoadingOverlayTheme.of(context)?.iconColor`.
+  /// The built-in content renders no icons, so this value has no
+  /// effect. Custom builders should take colors from their own code or
+  /// from `Theme.of(context)`.
+  @Deprecated('Has no effect; will be removed in a future release.')
   final Color? iconColor;
 
   /// Label announced by screen readers for the overlay.
@@ -199,6 +200,7 @@ class LoadingOverlayThemeData with Diagnosticable {
     double? elevation,
     LoaderType? loaderType,
     bool? dismissible,
+    @Deprecated('Has no effect; will be removed in a future release.')
     Color? iconColor,
     String? semanticsLabel,
   }) =>
@@ -220,6 +222,7 @@ class LoadingOverlayThemeData with Diagnosticable {
         elevation: elevation ?? this.elevation,
         loaderType: loaderType ?? this.loaderType,
         dismissible: dismissible ?? this.dismissible,
+        // ignore: deprecated_member_use_from_same_package
         iconColor: iconColor ?? this.iconColor,
         semanticsLabel: semanticsLabel ?? this.semanticsLabel,
       );
@@ -256,6 +259,7 @@ class LoadingOverlayThemeData with Diagnosticable {
       elevation: lerpDouble(a?.elevation, b?.elevation, t),
       loaderType: t < 0.5 ? a?.loaderType : b?.loaderType,
       dismissible: t < 0.5 ? a?.dismissible : b?.dismissible,
+      // ignore: deprecated_member_use_from_same_package
       iconColor: Color.lerp(a?.iconColor, b?.iconColor, t),
       semanticsLabel: t < 0.5 ? a?.semanticsLabel : b?.semanticsLabel,
     );
@@ -282,6 +286,7 @@ class LoadingOverlayThemeData with Diagnosticable {
         other.elevation == elevation &&
         other.loaderType == loaderType &&
         other.dismissible == dismissible &&
+        // ignore: deprecated_member_use_from_same_package
         other.iconColor == iconColor &&
         other.semanticsLabel == semanticsLabel;
   }
@@ -305,6 +310,7 @@ class LoadingOverlayThemeData with Diagnosticable {
         elevation,
         loaderType,
         dismissible,
+        // ignore: deprecated_member_use_from_same_package
         iconColor,
         semanticsLabel,
       ]);
@@ -351,6 +357,7 @@ class LoadingOverlayThemeData with Diagnosticable {
       ..add(
         DiagnosticsProperty<bool>('dismissible', dismissible),
       )
+      // ignore: deprecated_member_use_from_same_package
       ..add(ColorProperty('iconColor', iconColor))
       ..add(StringProperty('semanticsLabel', semanticsLabel));
   }

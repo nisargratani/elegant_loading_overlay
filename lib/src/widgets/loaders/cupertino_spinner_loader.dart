@@ -28,7 +28,8 @@ import '../../constants/defaults.dart';
 class CupertinoSpinnerLoader extends StatelessWidget {
   /// Creates a Cupertino-style spinner loading indicator.
   ///
-  /// The spinner's radius is half of [size]. When [color] is `null`,
+  /// The spinner's radius is half of [size]; when [size] is 0 or less,
+  /// nothing is drawn. When [color] is `null`,
   /// [CupertinoActivityIndicator] uses the system default color.
   const CupertinoSpinnerLoader({
     super.key,
@@ -45,11 +46,15 @@ class CupertinoSpinnerLoader extends StatelessWidget {
   final Color? color;
 
   @override
-  Widget build(BuildContext context) => SizedBox.square(
-        dimension: size,
-        child: CupertinoActivityIndicator(
-          radius: size / 2,
-          color: color,
-        ),
-      );
+  Widget build(BuildContext context) {
+    // CupertinoActivityIndicator asserts radius > 0.
+    if (size <= 0) return const SizedBox.shrink();
+    return SizedBox.square(
+      dimension: size,
+      child: CupertinoActivityIndicator(
+        radius: size / 2,
+        color: color,
+      ),
+    );
+  }
 }

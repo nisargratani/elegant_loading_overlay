@@ -12,6 +12,7 @@ import 'package:flutter/widgets.dart';
 
 import '../controller/loading_overlay_controller.dart';
 import '../models/loading_overlay_config.dart';
+import 'back_guard.dart';
 import 'overlay_widget.dart';
 
 /// Resolves the [OverlayState] a new overlay entry should be inserted
@@ -33,6 +34,9 @@ typedef OverlayHostResolver = OverlayState? Function();
 /// - Stacking protection (only one overlay at a time)
 /// - Deferring overlay mutations requested during a build/layout phase
 /// - Recovering when the host [Overlay] is disposed underneath it
+/// - Blocking system back navigation while visible (dismissing instead
+///   when the overlay is dismissible)
+/// - Moving the entry when it is shown again in a different [Overlay]
 ///
 /// This class is used internally by LoadingOverlay and
 /// LoadingOverlayScope. It is not part of the public API.
@@ -56,6 +60,15 @@ class OverlayEntryManager {
   OverlayEntry? _entry;
   GlobalKey<OverlayWidgetState>? _widgetKey;
   LoadingOverlayConfig? _config;
+
+  /// The Overlay [_entry] is (or is about to be) inserted into.
+  OverlayState? _host;
+
+  /// Incremented by every show/update, so callbacks can tell whether
+  /// the overlay was shown again while they ran.
+  int _generation = 0;
+
+  BackGuard? _backGuard;
 
   /// Whether [_entry] is waiting for a post-frame insertion.
   bool _insertPending = false;
@@ -99,6 +112,7 @@ class OverlayEntryManager {
     controller.removeListener(_handleControllerChanged);
     _completeHide();
     _removeEntry();
+    _detachBackGuard();
   }
 
   void _handleControllerChanged() {
@@ -113,6 +127,7 @@ class OverlayEntryManager {
 
   void _present(LoadingOverlayConfig config, OverlayState? host) {
     _config = config;
+    _generation++;
 
     final entry = _entry;
     if (entry != null) {
@@ -121,16 +136,22 @@ class OverlayEntryManager {
         _completeHide();
         _widgetKey?.currentState?.animateIn();
       }
-      _runWhenSafe(() {
-        if (identical(_entry, entry) && !_insertPending) {
-          entry.markNeedsBuild();
-        }
-      });
+      if (host != null && !identical(host, _host) && host.mounted) {
+        _moveEntry(entry, host);
+      } else {
+        _runWhenSafe(() {
+          if (identical(_entry, entry) && !_insertPending) {
+            entry.markNeedsBuild();
+          }
+        });
+        _attachBackGuard();
+      }
       return;
     }
 
     final overlay = host ?? _resolveHost();
     if (overlay == null || !overlay.mounted) {
+      _config = null;
       FlutterError.reportError(
         FlutterErrorDetails(
           exception: FlutterError.fromParts([
@@ -148,6 +169,15 @@ class OverlayEntryManager {
           library: 'elegant_loading_overlay',
         ),
       );
+      // Nothing is visible, so the controller must not claim otherwise.
+      // We are inside the controller's own listener here; reset it once
+      // the current notification has finished.
+      final generation = _generation;
+      scheduleMicrotask(() {
+        if (!_disposed && _entry == null && _generation == generation) {
+          controller.hide();
+        }
+      });
       return;
     }
 
@@ -162,6 +192,7 @@ class OverlayEntryManager {
       ),
     );
     _entry = newEntry;
+    _host = overlay;
 
     if (_isBuilding) {
       // Inserting during build/layout would call setState on the
@@ -170,15 +201,47 @@ class OverlayEntryManager {
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (!identical(_entry, newEntry)) return; // Hidden meanwhile.
         _insertPending = false;
-        if (overlay.mounted) {
-          overlay.insert(newEntry);
+        final target = _host;
+        if (target != null && target.mounted) {
+          target.insert(newEntry);
+          _attachBackGuard();
         } else {
           _abandonEntry();
         }
       });
     } else {
       overlay.insert(newEntry);
+      _attachBackGuard();
     }
+  }
+
+  /// Moves the visible [entry] into [host]. Its widget keeps its state
+  /// (the entry is re-parented with its GlobalKey within one frame), so
+  /// the entry animation is not replayed.
+  void _moveEntry(OverlayEntry entry, OverlayState host) {
+    _host = host;
+    if (_insertPending) return; // The pending insertion reads _host.
+    _runWhenSafe(() {
+      if (!identical(_entry, entry) || _insertPending) return;
+      if (!host.mounted || !identical(_host, host)) return;
+      entry.remove();
+      host.insert(entry);
+      _attachBackGuard();
+    });
+  }
+
+  /// Blocks back navigation on the routes in front of the current host
+  /// while the overlay is showing.
+  void _attachBackGuard() {
+    final host = _host;
+    if (_disposed || !isShowing || _insertPending || host == null) return;
+    (_backGuard ??= BackGuard(onBack: _handleBack))
+        .attach(BackGuard.routesFor(host));
+  }
+
+  void _detachBackGuard() {
+    _backGuard?.dispose();
+    _backGuard = null;
   }
 
   Future<void> _dismiss() {
@@ -187,6 +250,8 @@ class OverlayEntryManager {
     if (pending != null) return pending.future;
 
     final completer = _hideCompleter = Completer<void>();
+    // Back navigation works again as soon as hiding starts.
+    _detachBackGuard();
     final state = _widgetKey?.currentState;
     if (_insertPending || state == null || !state.mounted) {
       _completeHide();
@@ -207,10 +272,16 @@ class OverlayEntryManager {
   void _handleDismissTap() {
     final config = _config;
     if (!isShowing || config == null || !config.dismissible) return;
+    final generation = _generation;
     config.onDismiss?.call();
-    // A listener or onDismiss may already have hidden the overlay.
-    if (isShowing) unawaited(hide());
+    // onDismiss may already have hidden the overlay, or shown a new one
+    // (for example a retry message); only hide what was dismissed.
+    if (isShowing && _generation == generation) unawaited(hide());
   }
+
+  /// Handles a blocked system back press: dismissible overlays are
+  /// dismissed as if the barrier was tapped; others swallow it.
+  void _handleBack() => _handleDismissTap();
 
   /// Called when the entry's widget is disposed. If this happens
   /// while the entry is still current, its [Overlay] was torn down
@@ -218,8 +289,10 @@ class OverlayEntryManager {
   void _handleEntryDisposed(OverlayEntry entry) {
     if (!identical(_entry, entry)) return;
     _completeHide();
+    _detachBackGuard();
     _entry = null;
     _widgetKey = null;
+    _host = null;
     // The element tree is locked while widgets are being disposed, so
     // release the entry and notify listeners afterwards.
     _config = null;
@@ -233,18 +306,22 @@ class OverlayEntryManager {
 
   void _abandonEntry() {
     _completeHide();
+    _detachBackGuard();
     _entry?.dispose();
     _entry = null;
     _widgetKey = null;
+    _host = null;
     _config = null;
     if (!_disposed) controller.hide();
   }
 
   void _removeEntry() {
+    _detachBackGuard();
     final entry = _entry;
     if (entry == null) return;
     _entry = null;
     _widgetKey = null;
+    _host = null;
     // Release user callbacks (builder, onDismiss) held by the config.
     _config = null;
     if (_insertPending) {

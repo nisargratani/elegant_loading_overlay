@@ -17,8 +17,9 @@ import '../widgets/loading_content.dart';
 ///
 /// Composes the barrier, blur effect, and loading content into
 /// a single animated overlay. Handles dismissible taps, blocks
-/// semantics of the content behind it, and keeps the content clear
-/// of the on-screen keyboard.
+/// semantics of the content behind it, traps keyboard focus while
+/// visible, and keeps the content clear of the on-screen keyboard and
+/// system UI, scrolling it when it does not fit.
 ///
 /// This widget is used internally by OverlayEntryManager and
 /// should not be instantiated directly.
@@ -58,9 +59,22 @@ class OverlayWidgetState extends State<OverlayWidget>
   late final AnimationController _animationController;
   late CurvedAnimation _animation;
 
+  /// Traps keyboard focus inside the overlay while it is visible.
+  final FocusScopeNode _focusScope =
+      FocusScopeNode(debugLabel: 'LoadingOverlay');
+
+  /// The node that had focus before the overlay took it.
+  FocusNode? _previousFocus;
+
   @override
   void initState() {
     super.initState();
+    _previousFocus = FocusManager.instance.primaryFocus;
+    // FocusScope.autofocus does nothing while the page behind already has
+    // focus, so take it explicitly once the scope is attached.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusScope.requestFocus();
+    });
     _animationController = AnimationController(
       vsync: this,
       duration: widget.config.animationDuration,
@@ -91,8 +105,20 @@ class OverlayWidgetState extends State<OverlayWidget>
   void dispose() {
     _animation.dispose();
     _animationController.dispose();
+    _focusScope.dispose();
+    _restoreFocus();
     widget.onDisposed?.call();
     super.dispose();
+  }
+
+  /// Gives focus back to the widget that had it before the overlay, if
+  /// that widget is still in the tree (for example the same page).
+  void _restoreFocus() {
+    final previous = _previousFocus;
+    _previousFocus = null;
+    if (previous == null || previous.context == null) return;
+    if (!previous.canRequestFocus) return;
+    previous.requestFocus();
   }
 
   /// Plays the exit animation.
@@ -125,51 +151,62 @@ class OverlayWidgetState extends State<OverlayWidget>
         child: Semantics(
           label: config.semanticsLabel,
           liveRegion: true,
-          child: Material(
-            type: MaterialType.transparency,
-            child: Stack(
-              children: [
-                // Barrier with optional blur.
-                Positioned.fill(
-                  child: GestureDetector(
-                    onTap: config.dismissible ? widget.onDismiss : null,
-                    behavior: HitTestBehavior.opaque,
-                    child: FadeTransition(
-                      opacity: _animation,
-                      child: _buildBarrier(config),
+          // Focus moves into this scope (see initState) and traversal
+          // cannot leave a scope, so Tab/Enter/Space cannot reach widgets
+          // behind the overlay.
+          child: FocusScope(
+            node: _focusScope,
+            child: Material(
+              type: MaterialType.transparency,
+              child: Stack(
+                children: [
+                  // Barrier with optional blur.
+                  Positioned.fill(
+                    child: GestureDetector(
+                      onTap: config.dismissible ? widget.onDismiss : null,
+                      behavior: HitTestBehavior.opaque,
+                      child: FadeTransition(
+                        opacity: _animation,
+                        child: _buildBarrier(config),
+                      ),
                     ),
                   ),
-                ),
 
-                // Centered loading content, kept above the keyboard.
-                Positioned.fill(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.viewInsetsOf(context).bottom,
-                    ),
-                    child: Center(
-                      child: OverlayTransition(
-                        animation: _animation,
-                        animationType: config.animationType,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 40,
-                          ),
-                          child: Material(
-                            color: config.backgroundColor,
-                            elevation: config.elevation,
-                            borderRadius: config.borderRadius,
+                  // Centered loading content, kept clear of the keyboard and
+                  // system UI, and scrollable when it does not fit.
+                  Positioned.fill(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.viewInsetsOf(context).bottom,
+                      ),
+                      child: SafeArea(
+                        child: Center(
+                          child: OverlayTransition(
+                            animation: _animation,
+                            animationType: config.animationType,
                             child: Padding(
-                              padding: config.padding,
-                              child: LoadingContent(config: config),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 40,
+                                vertical: 16,
+                              ),
+                              child: Material(
+                                color: config.backgroundColor,
+                                elevation: config.elevation,
+                                borderRadius: config.borderRadius,
+                                // Shrink-wraps when the content fits.
+                                child: SingleChildScrollView(
+                                  padding: config.padding,
+                                  child: LoadingContent(config: config),
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
