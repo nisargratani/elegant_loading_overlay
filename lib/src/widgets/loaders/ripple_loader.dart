@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../constants/defaults.dart';
+import 'loader_extent.dart';
 
 /// An expanding ripple rings loading indicator.
 ///
@@ -33,7 +34,7 @@ class RippleLoader extends StatefulWidget {
     this.ringCount = 2,
   }) : assert(ringCount > 0, 'ringCount must be at least 1');
 
-  /// The maximum size of the ripple.
+  /// The maximum size of the ripple. A negative size draws nothing.
   final double size;
 
   /// The color of the ripple rings.
@@ -66,37 +67,40 @@ class _RippleLoaderState extends State<RippleLoader>
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) => SizedBox.square(
-          dimension: widget.size,
-          child: Stack(
-            alignment: Alignment.center,
-            children: List.generate(widget.ringCount, (index) {
-              final delay = index / widget.ringCount;
-              final progress =
-                  ((_controller.value + delay) % 1.0).clamp(0.0, 1.0);
-              final scale = 0.2 + 0.8 * progress;
-              final opacity = (1.0 - progress).clamp(0.0, 1.0);
+  Widget build(BuildContext context) {
+    final size = loaderExtent(widget.size);
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) => SizedBox.square(
+        dimension: size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: List.generate(widget.ringCount, (index) {
+            final delay = index / widget.ringCount;
+            final progress =
+                ((_controller.value + delay) % 1.0).clamp(0.0, 1.0);
+            final scale = 0.2 + 0.8 * progress;
+            final opacity = (1.0 - progress).clamp(0.0, 1.0);
 
-              return Opacity(
-                opacity: opacity,
-                child: Transform.scale(
-                  scale: scale,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: widget.color,
-                        width: 2.5,
-                      ),
+            return Opacity(
+              opacity: opacity,
+              child: Transform.scale(
+                scale: scale,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: widget.color,
+                      width: 2.5,
                     ),
-                    child: SizedBox.square(dimension: widget.size),
                   ),
+                  child: SizedBox.square(dimension: size),
                 ),
-              );
-            }),
-          ),
+              ),
+            );
+          }),
         ),
-      );
+      ),
+    );
+  }
 }

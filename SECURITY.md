@@ -6,8 +6,8 @@ Security fixes are released for the latest published version only.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.0.4   | :white_check_mark: |
-| < 0.0.4 | :x:                |
+| 0.0.5   | :white_check_mark: |
+| < 0.0.5 | :x:                |
 
 ## Reporting a Vulnerability
 

@@ -116,17 +116,23 @@ void main() {
   testWidgets('overshooting animation curves do not assert', (tester) async {
     final ctx = await pumpHost(tester);
 
-    LoadingOverlay.show(context: ctx, animationCurve: Curves.easeOutBack);
-    for (var i = 0; i < 30; i++) {
-      await tester.pump(const Duration(milliseconds: 16));
+    for (final type in LoadingAnimationType.values) {
+      LoadingOverlay.show(
+        context: ctx,
+        animation: type,
+        animationCurve: Curves.easeOutBack,
+      );
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      expect(tester.takeException(), isNull, reason: '$type on show');
+      expect(LoadingOverlay.isShowing, isTrue);
+
+      unawaited(LoadingOverlay.hide());
+      await settle(tester);
+      expect(tester.takeException(), isNull, reason: '$type on hide');
     }
-
-    expect(tester.takeException(), isNull);
-    expect(LoadingOverlay.isShowing, isTrue);
-
-    unawaited(LoadingOverlay.hide());
-    await settle(tester);
-    expect(tester.takeException(), isNull);
   });
 
   testWidgets('show() during the exit animation keeps the overlay visible',

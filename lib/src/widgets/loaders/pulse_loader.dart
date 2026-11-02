@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../constants/defaults.dart';
+import 'loader_extent.dart';
 
 /// A pulsing circle loading indicator.
 ///
@@ -30,7 +31,8 @@ class PulseLoader extends StatefulWidget {
     this.color = LoadingOverlayDefaults.loaderColor,
   });
 
-  /// The maximum size of the pulse circle.
+  /// The maximum size of the pulse circle. A negative size draws
+  /// nothing.
   final double size;
 
   /// The color of the pulse circle.
@@ -69,25 +71,28 @@ class _PulseLoaderState extends State<PulseLoader>
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) => SizedBox.square(
-          dimension: widget.size,
-          child: Center(
-            child: Opacity(
-              opacity: _opacityAnimation.value,
-              child: Transform.scale(
-                scale: _scaleAnimation.value,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: widget.color,
-                    shape: BoxShape.circle,
-                  ),
-                  child: SizedBox.square(dimension: widget.size),
+  Widget build(BuildContext context) {
+    final size = loaderExtent(widget.size);
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) => SizedBox.square(
+        dimension: size,
+        child: Center(
+          child: Opacity(
+            opacity: _opacityAnimation.value,
+            child: Transform.scale(
+              scale: _scaleAnimation.value,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: widget.color,
+                  shape: BoxShape.circle,
                 ),
+                child: SizedBox.square(dimension: size),
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }

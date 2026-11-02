@@ -9,12 +9,14 @@ const bool _legacyFlutter = bool.fromEnvironment('LEGACY_FLUTTER');
 
 /// Runs every widget test with leak tracking, so undisposed or retained
 /// overlay entries, animations and controllers fail the test.
+///
+/// The app-lifetime `LoadingOverlay.controller` needs no entry here: the
+/// package reports it to the leak tracker as released (ELO-08), as an
+/// app's own test config would expect.
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   LeakTesting.enable();
   LeakTesting.settings = LeakTesting.settings.withTrackedAll().withIgnored(
     notDisposed: {
-      // LoadingOverlay.controller is an app-lifetime singleton by design.
-      'LoadingOverlayController': 1,
       if (_legacyFlutter) 'CurvedAnimation': null,
     },
   );

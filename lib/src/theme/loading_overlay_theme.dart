@@ -82,12 +82,16 @@ class LoadingOverlayThemeData with Diagnosticable {
 
   /// Text style for the loading message.
   ///
-  /// When `null`, defaults to [LoadingOverlayDefaults.messageTextStyle].
+  /// Merged into the default message style (see
+  /// [LoadingOverlayDefaults.messageTextStyle]), which is white on a
+  /// dark [backgroundColor].
   final TextStyle? messageTextStyle;
 
   /// Text style for the subtitle text.
   ///
-  /// When `null`, defaults to [LoadingOverlayDefaults.subtitleTextStyle].
+  /// Merged into the default subtitle style (see
+  /// [LoadingOverlayDefaults.subtitleTextStyle]), which is
+  /// `Colors.white70` on a dark [backgroundColor].
   final TextStyle? subtitleTextStyle;
 
   /// Border radius of the loading indicator container.

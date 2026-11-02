@@ -40,7 +40,7 @@ no dependencies beyond the Flutter SDK.
 
 ```yaml
 dependencies:
-  elegant_loading_overlay: ^0.0.4
+  elegant_loading_overlay: ^0.0.5
 ```
 
 ```bash
@@ -64,6 +64,27 @@ try {
 
 Hide the overlay in `finally` so that an exception can never leave it on
 screen.
+
+To show an error dialog, hide the overlay first: dialogs and pages pushed
+while the overlay is visible open underneath it (see
+[Behavior notes](#behavior-notes-and-limitations)).
+
+```dart
+LoadingOverlay.show(context: context);
+try {
+  await saveOrder();
+} catch (e) {
+  await LoadingOverlay.hide(); // before showing the dialog
+  if (context.mounted) {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(title: Text('Could not save: $e')),
+    );
+  }
+} finally {
+  await LoadingOverlay.hide(); // completes at once if already hidden
+}
+```
 
 `context` must be below a `Navigator` (for example any widget inside a
 page of your `MaterialApp`). The overlay is inserted into that Navigator's
@@ -131,10 +152,11 @@ LoadingOverlay.show(
 );
 ```
 
-`onDismiss` is called once, when the user taps the barrier or presses the
-system back button; it is not called when you call `hide()` yourself. It
-may call `show()` again (for example to show a retry message); that new
-overlay stays visible.
+`onDismiss` is called once, when the user taps the barrier, presses the
+system back button or Escape, or uses the screen reader's dismiss action;
+it is not called when you call `hide()` yourself. It may call `show()`
+again (for example to show a retry message); that new overlay stays
+visible.
 
 ### Back button and keyboard
 
@@ -144,19 +166,44 @@ browser back, `Navigator.maybePop`) does not pop the page behind it:
 - a non-dismissible overlay ignores it;
 - a dismissible overlay is dismissed, calling `onDismiss`.
 
-This applies to the top route of the Navigator hosting the overlay (and of
-the root Navigator, when that is a different one). Programmatic
-`Navigator.pop()` is not blocked, so code that pops a page before hiding
-the overlay keeps working. Back navigation works normally again as soon as
-`hide()` is called.
+This applies to the top route of the Navigator hosting the overlay, of the
+Navigator around the code that showed it (the `context` passed to `show()`,
+or the `LoadingOverlayScope`) and every Navigator above that one, and of
+the root Navigator. So back is also blocked when it is forwarded to a
+nested Navigator (by `NavigatorPopHandler` or go_router's
+`StatefulShellRoute`) while the overlay covers the whole app with
+`useRootOverlay: true`. Programmatic `Navigator.pop()` is not blocked, so
+code that pops a page before hiding the overlay keeps working. Back
+navigation works normally again as soon as `hide()` is called.
+
+`show()` and `hide()` can be called from a `PopScope` callback, for example
+to show a "Saving draft" overlay when the user presses back:
+
+```dart
+PopScope(
+  canPop: false,
+  onPopInvokedWithResult: (didPop, _) async {
+    if (didPop) return;
+    LoadingOverlay.show(context: context, message: 'Saving draft');
+    await saveDraft();
+    await LoadingOverlay.hide();
+    if (context.mounted) Navigator.pop(context);
+  },
+  child: editor,
+)
+```
+
+On Flutter 3.22, use `onPopInvoked: (didPop) async { ... }` instead.
 
 Keyboard focus moves into the overlay while it is visible, so Tab, Enter
-and Space cannot reach widgets behind it. Focusable widgets in a custom
+and Space cannot reach widgets behind it. Escape dismisses a dismissible
+overlay and does nothing otherwise. Focusable widgets in a custom
 `builder` (a Cancel button, a text field) work and can be reached with
 Tab. When the overlay is removed, focus returns to the widget that had it
-before, if that widget is still on screen. If a text field had focus, the
-on-screen keyboard closes while the overlay is visible and may reopen
-afterwards.
+before, if that widget is still on screen and focus has not moved on in
+the meantime (for example to a page pushed while the overlay was visible).
+If a text field had focus, the on-screen keyboard closes while the overlay
+is visible and may reopen afterwards.
 
 ### Status and toggle
 
@@ -191,12 +238,15 @@ LoadingOverlay.show(context: context, loaderType: LoaderType.dots);
 
 The loader widgets are also exported (`CircularLoader`, `DotsLoader`,
 `BarsLoader`, ...) and can be used anywhere in your UI, or through
-`LoadingIndicator(loaderType: ...)`.
+`LoadingIndicator(loaderType: ...)`. They scale down to fit a parent that
+is smaller than their `size`; a negative `size` draws nothing.
 
 ### Custom content
 
 `builder` replaces the loader, message and progress bar. The result is
-still shown inside the overlay's card (background, padding, elevation).
+still shown inside the overlay's card (background, padding, elevation),
+and text and icons in it default to a color that is readable on the card
+(see [Theming](#theming)).
 
 The card is limited to the space between the system UI and the on-screen
 keyboard; when its content is taller (long messages, large text scale,
@@ -246,6 +296,10 @@ navigation bar:
 LoadingOverlay.show(context: context, useRootOverlay: true);
 ```
 
+Back is still blocked on the nested page, also when back is forwarded to
+the nested Navigator (`NavigatorPopHandler`, go_router's
+`StatefulShellRoute`).
+
 ### Calling from `initState`
 
 `show()` can be called from `initState` or during a build; the overlay is
@@ -291,8 +345,13 @@ LoadingOverlayTheme(
 )
 ```
 
-The default card is white with dark text in both light and dark mode; set
-`backgroundColor` and the text styles in the theme to match a dark theme.
+The default card is white in both light and dark apps. Text and icons in
+the card default to a color that is readable on its `backgroundColor`,
+whatever the app's theme: dark grey on a light card and white on a dark
+card. This includes text and icons in a custom `builder`. A
+`messageStyle`/`subtitleStyle` (or the theme's `messageTextStyle`/
+`subtitleTextStyle`) is merged into that default, so
+`TextStyle(fontSize: 20)` only changes the size.
 
 ## Scoped overlays
 
@@ -325,6 +384,21 @@ scope.show(
 
 Place the scope below `MaterialApp` (for example around a page), because
 its overlay is inserted into the nearest `Overlay` above the scope.
+
+`LoadingOverlayScope.of(context)` and `LoadingOverlayTheme.of(context)` also
+work inside the scope's overlay, for example for a Cancel button in a
+custom `builder`:
+
+```dart
+scope.show(
+  LoadingOverlayConfig(
+    builder: (context) => TextButton(
+      onPressed: () => LoadingOverlayScope.of(context).hide(),
+      child: const Text('Cancel'),
+    ),
+  ),
+);
+```
 
 ### Driving a scope from outside the widget tree
 
@@ -409,8 +483,8 @@ Accepted by `LoadingOverlay.show`, `context.showLoadingOverlay` and
 | `loaderType` | `LoaderType` | `circular` |
 | `builder` | `WidgetBuilder?` | `null` |
 | `onDismiss` | `VoidCallback?` | `null` |
-| `messageStyle` | `TextStyle?` | 16 px, medium, dark grey |
-| `subtitleStyle` | `TextStyle?` | 13 px, grey |
+| `messageStyle` | `TextStyle?` | 16 px, medium, dark grey (white on a dark card); merged into this default |
+| `subtitleStyle` | `TextStyle?` | 13 px, grey (white70 on a dark card); merged into this default |
 | `semanticsLabel` | `String` | `'Loading overlay'` |
 | `useRootOverlay` | `bool` | `false` |
 
@@ -448,10 +522,23 @@ only advances when you pump frames:
 
 After the overlay is gone, `pumpAndSettle()` works normally again.
 
+**Leak tracking.** `LoadingOverlay.controller` lives as long as the app and
+is never disposed. The package reports it to Flutter's leak tracker as
+released, so tests run with `LeakTesting.enable()` (from
+`leak_tracker_flutter_testing`) need no ignore entry for it.
+
 ## Behavior notes and limitations
 
 - **One global overlay.** `LoadingOverlay` shows at most one overlay at a
   time. Use `LoadingOverlayScope` for independent overlays.
+- **Routes pushed while the overlay is visible open underneath the
+  overlay.** This applies to pages, dialogs and bottom sheets: they cannot
+  be seen or used until `hide()` is called. Call
+  `await LoadingOverlay.hide()` before `showDialog` (see
+  [Quick start](#quick-start)); otherwise code like
+  `catch (e) { await showDialog(...); } finally { await LoadingOverlay.hide(); }`
+  never reaches `hide()`, because nobody can close the dialog. The overlay
+  is an `OverlayEntry`, which the Navigator always keeps above its routes.
 - **Back button and new routes.** Back is blocked on the routes that were
   on top when the overlay was shown. If your code pushes another route
   while the overlay is still visible, back on that new route is not

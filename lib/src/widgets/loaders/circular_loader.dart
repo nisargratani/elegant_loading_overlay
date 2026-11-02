@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../constants/defaults.dart';
+import 'loader_extent.dart';
 
 /// A rotating circular arc loading indicator.
 ///
@@ -73,7 +74,7 @@ class _CircularLoaderState extends State<CircularLoader>
   // only repaints instead of rebuilding this widget.
   @override
   Widget build(BuildContext context) => CustomPaint(
-        size: Size.square(widget.size),
+        size: Size.square(loaderExtent(widget.size)),
         painter: _CircularPainter(
           animation: _controller,
           color: widget.color,

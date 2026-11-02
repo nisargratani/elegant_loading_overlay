@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../constants/defaults.dart';
+import 'loader_extent.dart';
 
 /// A rotating 3D cube loading indicator.
 ///
@@ -32,7 +33,8 @@ class CubeLoader extends StatefulWidget {
     this.color = LoadingOverlayDefaults.loaderColor,
   });
 
-  /// The size of the cube face.
+  /// The size of the loader; the cube face is 60% of it. A negative
+  /// size draws nothing.
   final double size;
 
   /// The color of the cube.
@@ -63,9 +65,10 @@ class _CubeLoaderState extends State<CubeLoader>
 
   @override
   Widget build(BuildContext context) {
-    final cubeSize = widget.size * 0.6;
+    final size = loaderExtent(widget.size);
+    final cubeSize = size * 0.6;
     return SizedBox.square(
-      dimension: widget.size,
+      dimension: size,
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {

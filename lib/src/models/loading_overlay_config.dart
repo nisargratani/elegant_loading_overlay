@@ -135,10 +135,11 @@ class LoadingOverlayConfig {
   /// (and message, if any).
   final double? progress;
 
-  /// Whether the overlay can be dismissed by tapping outside.
+  /// Whether the user can dismiss the overlay.
   ///
-  /// Defaults to `false`. When `true`, tapping the barrier area
-  /// will hide the overlay and call [onDismiss] if provided.
+  /// Defaults to `false`. When `true`, tapping the barrier area, the
+  /// system back button, the Escape key and the screen reader dismiss
+  /// action hide the overlay and call [onDismiss] if provided.
   final bool dismissible;
 
   /// The type of animation for overlay entry and exit.
@@ -240,20 +241,25 @@ class LoadingOverlayConfig {
 
   /// Called when the overlay is dismissed by the user.
   ///
-  /// Only called when [dismissible] is `true` and the user taps
-  /// the barrier to dismiss the overlay.
+  /// Only called when [dismissible] is `true` and the user dismisses
+  /// the overlay: by tapping the barrier, pressing the system back
+  /// button or Escape, or using the screen reader dismiss action. Not
+  /// called when the overlay is hidden with `hide()`.
   final VoidCallback? onDismiss;
 
   /// Custom text style for the [message] text.
   ///
-  /// When `null`, uses [LoadingOverlayDefaults.messageTextStyle]
-  /// or the theme's text style.
+  /// Merged into the default style, so properties left `null` keep
+  /// their default: [LoadingOverlayDefaults.messageTextStyle] on a light
+  /// card, and the same style in white on a dark [backgroundColor].
   final TextStyle? messageStyle;
 
   /// Custom text style for the [subtitle] text.
   ///
-  /// When `null`, uses [LoadingOverlayDefaults.subtitleTextStyle]
-  /// or the theme's text style.
+  /// Merged into the default style, so properties left `null` keep
+  /// their default: [LoadingOverlayDefaults.subtitleTextStyle] on a
+  /// light card, and the same style in `Colors.white70` on a dark
+  /// [backgroundColor].
   final TextStyle? subtitleStyle;
 
   /// The label announced by screen readers for the overlay.

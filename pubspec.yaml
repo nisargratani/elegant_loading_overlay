@@ -2,7 +2,7 @@ name: elegant_loading_overlay
 description: >-
   Beautiful, customizable loading overlay for Flutter with a one-line API,
   11 built-in loaders, progress, blur, theming and scoped overlays.
-version: 0.0.4
+version: 0.0.5
 repository: https://github.com/nisargratani/elegant_loading_overlay
 issue_tracker: https://github.com/nisargratani/elegant_loading_overlay/issues
 topics:

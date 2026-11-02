@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../constants/defaults.dart';
+import 'loader_extent.dart';
 
 /// An equalizer-style bars loading indicator.
 ///
@@ -36,6 +37,9 @@ class BarsLoader extends StatefulWidget {
   }) : assert(barCount > 0, 'barCount must be at least 1');
 
   /// The overall size of the loader.
+  ///
+  /// The loader scales down to fit a smaller parent. A negative size
+  /// draws nothing.
   final double size;
 
   /// The color of the bars.
@@ -74,34 +78,42 @@ class _BarsLoaderState extends State<BarsLoader>
     // Each bar takes its width plus 0.3 of it as padding on each side,
     // so cap the width to keep all bars inside `size` (this only
     // affects barCount < 3).
+    final size = loaderExtent(widget.size);
+    // Nothing to draw; FittedBox also asserts on an empty child on
+    // Flutter 3.22.
+    if (size == 0) return const SizedBox.shrink();
     final count = widget.barCount;
-    final barWidth =
-        math.min(widget.size / (count * 2 - 1), widget.size / (count * 1.6));
-    return SizedBox.square(
-      dimension: widget.size,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) => Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: List.generate(widget.barCount, (index) {
-            final delay = index / widget.barCount;
-            final phase = ((_controller.value + delay) % 1.0) * 2 * math.pi;
-            final heightFactor = 0.3 + 0.7 * ((math.sin(phase) + 1) / 2);
-            return Padding(
-              padding: EdgeInsets.symmetric(horizontal: barWidth * 0.3),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: widget.color,
-                  borderRadius: BorderRadius.all(Radius.circular(barWidth / 2)),
+    final barWidth = math.min(size / (count * 2 - 1), size / (count * 1.6));
+    // Scales down (never up) when the parent offers less than `size`.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: SizedBox.square(
+        dimension: size,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) => Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(widget.barCount, (index) {
+              final delay = index / widget.barCount;
+              final phase = ((_controller.value + delay) % 1.0) * 2 * math.pi;
+              final heightFactor = 0.3 + 0.7 * ((math.sin(phase) + 1) / 2);
+              return Padding(
+                padding: EdgeInsets.symmetric(horizontal: barWidth * 0.3),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: widget.color,
+                    borderRadius:
+                        BorderRadius.all(Radius.circular(barWidth / 2)),
+                  ),
+                  child: SizedBox(
+                    width: barWidth,
+                    height: size * heightFactor,
+                  ),
                 ),
-                child: SizedBox(
-                  width: barWidth,
-                  height: widget.size * heightFactor,
-                ),
-              ),
-            );
-          }),
+              );
+            }),
+          ),
         ),
       ),
     );

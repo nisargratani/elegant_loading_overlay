@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import '../controller/loading_overlay_controller.dart';
 import '../models/loading_overlay_config.dart';
+import '../overlay/back_guard.dart';
 import '../overlay/overlay_entry_manager.dart';
 import '../theme/loading_overlay_theme.dart';
 import '../theme/loading_overlay_theme_widget.dart';
@@ -82,6 +83,10 @@ class LoadingOverlayScope extends StatefulWidget {
   /// Returns the state of the nearest [LoadingOverlayScope] ancestor,
   /// which provides `show`, `hide`, `toggle` and `controller`.
   ///
+  /// This also works inside the scope's own overlay (for example from a
+  /// Cancel button in a custom `builder`), although the overlay is
+  /// inserted into an [Overlay] above the scope.
+  ///
   /// Throws a [FlutterError] if no [LoadingOverlayScope] is found in
   /// the tree. Use [maybeOf] to handle that case.
   ///
@@ -106,8 +111,10 @@ class LoadingOverlayScope extends StatefulWidget {
 
   /// Returns the state of the nearest [LoadingOverlayScope] ancestor,
   /// or `null` if there is none.
+  ///
+  /// Like [of], this also finds the scope from inside its own overlay.
   static LoadingOverlayScopeState? maybeOf(BuildContext context) =>
-      context.findAncestorStateOfType<LoadingOverlayScopeState>();
+      context.getInheritedWidgetOfExactType<_ScopeMarker>()?.state;
 
   @override
   State<LoadingOverlayScope> createState() => LoadingOverlayScopeState();
@@ -148,13 +155,31 @@ class LoadingOverlayScopeState extends State<LoadingOverlayScope> {
       _manager.dispose();
       _manager = _createManager();
       if (controller.isShowing) _manager.sync();
+    } else if (oldWidget.theme != widget.theme) {
+      // The overlay content reads the theme (see _wrapOverlayContent).
+      _manager.markNeedsBuild();
     }
   }
 
   OverlayEntryManager _createManager() => OverlayEntryManager(
         controller: controller,
         resolveHost: () => mounted ? Overlay.maybeOf(context) : null,
+        wrapContent: _wrapOverlayContent,
       );
+
+  /// The overlay is inserted into an [Overlay] above this scope, outside
+  /// its subtree. Wrap it so that [LoadingOverlayScope.of] and
+  /// [LoadingOverlayTheme.of] work the same inside it (for example in a
+  /// custom `builder`) as below the scope.
+  Widget _wrapOverlayContent(Widget child) {
+    final theme = widget.theme;
+    return _ScopeMarker(
+      state: this,
+      child: theme == null
+          ? child
+          : LoadingOverlayTheme(data: theme, child: child),
+    );
+  }
 
   /// Shows the scoped overlay.
   ///
@@ -168,7 +193,11 @@ class LoadingOverlayScopeState extends State<LoadingOverlayScope> {
   void show([LoadingOverlayConfig? config]) {
     if (!mounted) return;
     final overlay = Overlay.of(context);
-    _manager.show(overlay, config ?? LoadingOverlayConfig.fromTheme(_theme));
+    _manager.show(
+      overlay,
+      config ?? LoadingOverlayConfig.fromTheme(_theme),
+      navigators: BackGuard.navigatorsOf(context),
+    );
   }
 
   /// Hides the scoped overlay with an exit animation.
@@ -199,7 +228,24 @@ class LoadingOverlayScopeState extends State<LoadingOverlayScope> {
   @override
   Widget build(BuildContext context) {
     final theme = widget.theme;
-    if (theme == null) return widget.child;
-    return LoadingOverlayTheme(data: theme, child: widget.child);
+    return _ScopeMarker(
+      state: this,
+      child: theme == null
+          ? widget.child
+          : LoadingOverlayTheme(data: theme, child: widget.child),
+    );
   }
+}
+
+/// Makes a [LoadingOverlayScopeState] findable below its scope and
+/// inside its overlay, which lives outside the scope's subtree.
+class _ScopeMarker extends InheritedWidget {
+  const _ScopeMarker({required this.state, required super.child});
+
+  final LoadingOverlayScopeState state;
+
+  // Looked up without a dependency (like findAncestorStateOfType), so
+  // nothing needs to be notified.
+  @override
+  bool updateShouldNotify(_ScopeMarker oldWidget) => false;
 }

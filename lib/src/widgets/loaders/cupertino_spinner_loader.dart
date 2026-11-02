@@ -7,6 +7,7 @@ library;
 import 'package:flutter/cupertino.dart';
 
 import '../../constants/defaults.dart';
+import 'loader_extent.dart';
 
 /// A Cupertino-style spinner loading indicator.
 ///
@@ -47,12 +48,13 @@ class CupertinoSpinnerLoader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final extent = loaderExtent(size);
     // CupertinoActivityIndicator asserts radius > 0.
-    if (size <= 0) return const SizedBox.shrink();
+    if (extent == 0) return const SizedBox.shrink();
     return SizedBox.square(
-      dimension: size,
+      dimension: extent,
       child: CupertinoActivityIndicator(
-        radius: size / 2,
+        radius: extent / 2,
         color: color,
       ),
     );

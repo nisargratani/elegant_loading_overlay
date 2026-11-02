@@ -4,6 +4,7 @@
 /// operations while also supporting advanced customization.
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../constants/defaults.dart';
@@ -11,6 +12,7 @@ import '../controller/loading_overlay_controller.dart';
 import '../models/loader_type.dart';
 import '../models/loading_animation_type.dart';
 import '../models/loading_overlay_config.dart';
+import '../overlay/back_guard.dart';
 import '../overlay/overlay_entry_manager.dart';
 import '../theme/loading_overlay_theme.dart';
 import '../theme/loading_overlay_theme_widget.dart';
@@ -81,15 +83,29 @@ import '../theme/loading_overlay_theme_widget.dart';
 ///  * [LoadingAnimationType], for animation options.
 ///  * [LoaderType], for built-in loader styles.
 abstract final class LoadingOverlay {
-  static final LoadingOverlayController _controller =
-      LoadingOverlayController();
   // Weak, so a Navigator that has been removed from the tree can be
   // garbage collected together with its routes.
   static WeakReference<OverlayState>? _host;
-  static final OverlayEntryManager _manager = OverlayEntryManager(
-    controller: _controller,
-    resolveHost: () => _host?.target,
-  );
+  static final OverlayEntryManager _manager = _createManager();
+  static LoadingOverlayController get _controller => _manager.controller;
+
+  static OverlayEntryManager _createManager() {
+    final manager = OverlayEntryManager(
+      controller: LoadingOverlayController(),
+      resolveHost: () => _host?.target,
+    );
+    // The global controller lives as long as the app and is never
+    // disposed, by design. Creating it (and the manager's listener on
+    // it) reports it to Flutter's memory allocation events, so leak
+    // tracking in an app's tests (LeakTesting.enable()) would flag it as
+    // "not disposed". Report it as released right away; it is not
+    // tracked after that.
+    if (kFlutterMemoryAllocationsEnabled) {
+      FlutterMemoryAllocations.instance
+          .dispatchObjectDisposed(object: manager.controller);
+    }
+    return manager;
+  }
 
   /// Whether a loading overlay is currently visible.
   ///
@@ -136,6 +152,11 @@ abstract final class LoadingOverlay {
   /// [Navigator]). Set [useRootOverlay] to `true` to use the root
   /// Overlay instead, so the overlay also covers widgets outside a
   /// nested Navigator (for example a bottom navigation bar).
+  ///
+  /// While the overlay is visible, system back does not pop the top
+  /// route of the Navigator around [context], of the Navigators above
+  /// it, or of the Navigator hosting the overlay. It is safe to call
+  /// [show] and [hide] from a `PopScope` callback.
   ///
   /// All other parameters are optional and override the values of the
   /// nearest [LoadingOverlayTheme], which in turn override
@@ -193,6 +214,9 @@ abstract final class LoadingOverlay {
     if (!context.mounted) return;
 
     final overlay = Overlay.of(context, rootOverlay: useRootOverlay);
+    // Back may be forwarded to the caller's own (nested) Navigator, which
+    // is not the host's when useRootOverlay is true; guard it too.
+    final navigators = BackGuard.navigatorsOf(context);
     // A plain lookup (no dependency) so that show() also works from
     // initState and does not make the caller rebuild on theme changes.
     final theme =
@@ -226,7 +250,7 @@ abstract final class LoadingOverlay {
     );
 
     _host = WeakReference(overlay);
-    _manager.show(overlay, config);
+    _manager.show(overlay, config, navigators: navigators);
   }
 
   /// Hides the loading overlay with an exit animation.

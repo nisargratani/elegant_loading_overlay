@@ -40,7 +40,8 @@ abstract final class LoadingOverlayDefaults {
 
   /// Default background color for the loading indicator container.
   ///
-  /// Uses white for light theme contexts.
+  /// White, in light and dark apps alike. Text and icons in the card
+  /// default to a color readable on the card's background color.
   static const Color backgroundColor = Colors.white;
 
   /// Default color for the loading indicator.
@@ -64,14 +65,20 @@ abstract final class LoadingOverlayDefaults {
   /// Default elevation for the loading indicator container.
   static const double elevation = 8;
 
-  /// Default text style for the loading message.
+  /// Default text style for the loading message, on a light card.
+  ///
+  /// On a dark card the same style is used in white. A custom message
+  /// style is merged into it.
   static const TextStyle messageTextStyle = TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.w500,
     color: Color(0xFF333333),
   );
 
-  /// Default text style for the subtitle text.
+  /// Default text style for the subtitle text, on a light card.
+  ///
+  /// On a dark card the same style is used in `Colors.white70`. A custom
+  /// subtitle style is merged into it.
   static const TextStyle subtitleTextStyle = TextStyle(
     fontSize: 13,
     fontWeight: FontWeight.w400,
@@ -81,7 +88,8 @@ abstract final class LoadingOverlayDefaults {
   /// Default label announced by screen readers for the overlay.
   static const String semanticsLabel = 'Loading overlay';
 
-  /// Whether the overlay is dismissible by tapping outside by default.
+  /// Whether the overlay is dismissible (by tapping outside it, back or
+  /// Escape) by default.
   static const bool dismissible = false;
 
   /// Whether to show a blur effect on the background by default.

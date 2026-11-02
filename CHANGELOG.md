@@ -5,6 +5,66 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.5] - 2026-11-02
+
+No code changes are required. Because `^0.0.4` only allows 0.0.4, update
+your constraint to `^0.0.5`.
+
+### Fixed
+
+- Calling `LoadingOverlay.show()` or `hide()` from a `PopScope` callback
+  (`onPopInvokedWithResult`), for example to show a "Saving draft" overlay
+  when the user presses back, no longer throws a
+  `ConcurrentModificationError`. On Android that error also closed the
+  app. (ELO-01)
+- `show(useRootOverlay: true)` from a page in a nested Navigator now blocks
+  back on that page when back is forwarded to the nested Navigator
+  (`NavigatorPopHandler`, go_router's `StatefulShellRoute`). Previously the
+  page behind the overlay was popped. (ELO-02)
+- `hide()` no longer moves focus, and the on-screen keyboard, back to a text
+  field on a page that is no longer current, for example after pushing the
+  next page while the overlay was visible. (ELO-03)
+- Overshooting `animationCurve`s (such as the README's `Curves.easeOutBack`
+  example, or `Curves.elasticOut`) no longer throw an assertion with the
+  `scale`, `slide`, `zoom` and `rotation` animations. (ELO-04)
+- Text on the default white card is readable in dark apps: a partial
+  `messageStyle`/`subtitleStyle` and the text in a custom `builder` no
+  longer take the app's light text color. (ELO-05)
+- A dismissible overlay can now be dismissed with the Escape key, and
+  screen readers get a labelled dismiss action instead of an unlabelled
+  full-screen tap target. (ELO-07)
+- Apps whose tests use Flutter's leak tracker (`LeakTesting.enable()`) no
+  longer get a "not disposed" leak for `LoadingOverlay.controller`.
+  (ELO-08)
+- `DotsLoader` and `BarsLoader` scale down instead of overflowing when
+  their parent is smaller than `size` (also a large `loaderSize` in the
+  overlay). Negative sizes no longer throw in any loader; they draw
+  nothing. (ELO-09)
+- `LoadingOverlayScope.of(context)` and `LoadingOverlayTheme.of(context)`
+  now work inside the scope's own overlay, for example from a Cancel
+  button in a custom `builder`. (ELO-10)
+
+### Changed
+
+- Text and icons in the card default to a color that is readable on its
+  `backgroundColor`: dark grey on light cards, as before, and white on dark
+  cards. This also applies to text and icons in a custom `builder`, which
+  used the app theme's text color before (in light apps the change is from
+  the theme's near-black to the same dark grey as the message).
+- `messageStyle` and `subtitleStyle` (and the theme's `messageTextStyle`
+  and `subtitleTextStyle`) are merged into the default styles instead of
+  replacing them, so properties you do not set keep their documented
+  default (for example the medium font weight of the message).
+- When the overlay is removed, focus is only returned to the previously
+  focused widget if focus was still inside the overlay. If something else
+  took focus meanwhile (such as a newly pushed page), it keeps it.
+- Escape dismisses a dismissible overlay, like the back button and a
+  barrier tap. On a non-dismissible overlay it does nothing.
+- README: documents that routes pushed while the overlay is visible open
+  underneath it, with a `catch`/`showDialog` example in Quick start
+  (ELO-06); `PopScope` usage, nested Navigators, Escape, card text colors,
+  scope access from a `builder` and leak tracking.
+
 ## [0.0.4] - 2026-10-22
 
 No code changes are required when upgrading. Because `^0.0.3` only allows

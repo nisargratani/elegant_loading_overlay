@@ -19,6 +19,10 @@ import 'overlay_widget.dart';
 /// into, or `null` when none is available.
 typedef OverlayHostResolver = OverlayState? Function();
 
+/// Wraps the widget shown in the overlay entry, for example to make
+/// inherited widgets of the code that owns the overlay visible to it.
+typedef OverlayContentWrapper = Widget Function(Widget child);
+
 /// Manages the lifecycle of a single loading overlay entry and keeps
 /// it in sync with a [LoadingOverlayController].
 ///
@@ -45,10 +49,14 @@ class OverlayEntryManager {
   ///
   /// [resolveHost] provides the [Overlay] used when the controller is
   /// shown without an explicit host (for example `controller.show()`).
+  /// [wrapContent], when given, wraps the overlay's widget each time the
+  /// entry builds.
   OverlayEntryManager({
     required this.controller,
     required OverlayHostResolver resolveHost,
-  }) : _resolveHost = resolveHost {
+    OverlayContentWrapper? wrapContent,
+  })  : _resolveHost = resolveHost,
+        _wrapContent = wrapContent {
     controller.addListener(_handleControllerChanged);
   }
 
@@ -56,6 +64,13 @@ class OverlayEntryManager {
   final LoadingOverlayController controller;
 
   final OverlayHostResolver _resolveHost;
+
+  final OverlayContentWrapper? _wrapContent;
+
+  /// The Navigators around the code that last called [show]; their top
+  /// routes are guarded against back navigation too. Weak, so a removed
+  /// Navigator can be garbage collected.
+  List<WeakReference<NavigatorState>> _navigators = const [];
 
   OverlayEntry? _entry;
   GlobalKey<OverlayWidgetState>? _widgetKey;
@@ -83,8 +98,22 @@ class OverlayEntryManager {
 
   /// Shows the overlay in [overlay] with [config], or updates the
   /// visible overlay if one is already showing.
-  void show(OverlayState overlay, LoadingOverlayConfig config) {
+  ///
+  /// [navigators] are the Navigators around the calling code (see
+  /// [BackGuard.navigatorsOf]). Back navigation is blocked on their top
+  /// routes as well as on those of the Navigator hosting [overlay] and
+  /// the root Navigator, so that a back press forwarded to a nested
+  /// Navigator cannot pop the page behind an overlay shown in the root
+  /// Overlay.
+  void show(
+    OverlayState overlay,
+    LoadingOverlayConfig config, {
+    Iterable<NavigatorState> navigators = const [],
+  }) {
     if (_disposed) return;
+    _navigators = [
+      for (final navigator in navigators) WeakReference(navigator),
+    ];
     _present(config, overlay);
     // The listener sees the identical config and does nothing further.
     controller.show(config);
@@ -103,6 +132,16 @@ class OverlayEntryManager {
   /// Re-applies the controller's current value. Useful after binding
   /// to a controller that is already showing.
   void sync() => _handleControllerChanged();
+
+  /// Rebuilds the visible overlay, for example after something read by
+  /// the content wrapper changed.
+  void markNeedsBuild() {
+    final entry = _entry;
+    if (_disposed || entry == null) return;
+    _runWhenSafe(() {
+      if (identical(_entry, entry) && !_insertPending) entry.markNeedsBuild();
+    });
+  }
 
   /// Removes any overlay immediately and stops listening to the
   /// controller. The controller itself is not disposed.
@@ -184,12 +223,15 @@ class OverlayEntryManager {
     final widgetKey = _widgetKey = GlobalKey<OverlayWidgetState>();
     late final OverlayEntry newEntry;
     newEntry = OverlayEntry(
-      builder: (context) => OverlayWidget(
-        key: widgetKey,
-        config: _config ?? config,
-        onDismiss: _handleDismissTap,
-        onDisposed: () => _handleEntryDisposed(newEntry),
-      ),
+      builder: (context) {
+        final Widget content = OverlayWidget(
+          key: widgetKey,
+          config: _config ?? config,
+          onDismiss: _handleDismissTap,
+          onDisposed: () => _handleEntryDisposed(newEntry),
+        );
+        return _wrapContent?.call(content) ?? content;
+      },
     );
     _entry = newEntry;
     _host = overlay;
@@ -230,13 +272,18 @@ class OverlayEntryManager {
     });
   }
 
-  /// Blocks back navigation on the routes in front of the current host
-  /// while the overlay is showing.
+  /// Blocks back navigation on the routes in front of the current host,
+  /// and on those of the caller's Navigators, while the overlay is
+  /// showing.
   void _attachBackGuard() {
     final host = _host;
     if (_disposed || !isShowing || _insertPending || host == null) return;
+    final navigators = [
+      for (final reference in _navigators)
+        if (reference.target case final navigator?) navigator,
+    ];
     (_backGuard ??= BackGuard(onBack: _handleBack))
-        .attach(BackGuard.routesFor(host));
+        .attach(BackGuard.routesFor(host, navigators));
   }
 
   void _detachBackGuard() {

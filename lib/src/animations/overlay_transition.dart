@@ -50,16 +50,20 @@ class OverlayTransition extends StatelessWidget {
   // CurvedAnimation: CurvedAnimation registers a status listener on its
   // parent as soon as it is created, so creating one per build would
   // leak a listener on every rebuild (e.g. every progress update).
+  //
+  // The parent animation can leave [0, 1] when the overlay uses an
+  // overshooting animationCurve (Curves.easeOutBack, Curves.elasticOut),
+  // and curves assert on such values, so clamp before applying them.
   static final Animatable<double> _easeOutBack =
-      CurveTween(curve: Curves.easeOutBack);
+      CurveTween(curve: const _ClampedCurve(Curves.easeOutBack));
   static final Animatable<Offset> _slideUp = Tween<Offset>(
     begin: const Offset(0, 0.3),
     end: Offset.zero,
-  ).chain(CurveTween(curve: Curves.easeOutCubic));
+  ).chain(CurveTween(curve: const _ClampedCurve(Curves.easeOutCubic)));
   static final Animatable<double> _zoomIn = Tween<double>(begin: 0.5, end: 1)
-      .chain(CurveTween(curve: Curves.easeOutCubic));
+      .chain(CurveTween(curve: const _ClampedCurve(Curves.easeOutCubic)));
   static final Animatable<double> _halfTurn = Tween<double>(begin: 0.5, end: 1)
-      .chain(CurveTween(curve: Curves.easeOutCubic));
+      .chain(CurveTween(curve: const _ClampedCurve(Curves.easeOutCubic)));
 
   @override
   Widget build(BuildContext context) {
@@ -108,4 +112,17 @@ class OverlayTransition extends StatelessWidget {
         return child;
     }
   }
+}
+
+/// Applies [inner] to `t` clamped to [0, 1], so that values outside that
+/// range (from an overshooting parent animation) do not assert.
+class _ClampedCurve extends Curve {
+  const _ClampedCurve(this.inner);
+
+  final Curve inner;
+
+  // Overrides transform, not transformInternal: Curve.transform asserts
+  // that t is in [0, 1] before calling transformInternal.
+  @override
+  double transform(double t) => inner.transform(t.clamp(0.0, 1.0));
 }

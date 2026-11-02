@@ -14,6 +14,7 @@ import 'cube_loader.dart';
 import 'cupertino_spinner_loader.dart';
 import 'dots_loader.dart';
 import 'gradient_spinner_loader.dart';
+import 'loader_extent.dart';
 import 'material_spinner_loader.dart';
 import 'minimal_spinner_loader.dart';
 import 'pulse_loader.dart';
@@ -55,65 +56,68 @@ class LoadingIndicator extends StatelessWidget {
 
   /// The size of the loader.
   ///
-  /// When `null`, each loader uses its own default size.
+  /// When `null`, each loader uses its own default size. A negative size
+  /// draws nothing.
   final double? size;
 
   @override
   Widget build(BuildContext context) {
+    final requested = size;
+    final extent = requested == null ? null : loaderExtent(requested);
     switch (loaderType) {
       case LoaderType.circular:
         return CircularLoader(
           color: color ?? const CircularLoader().color,
-          size: size ?? const CircularLoader().size,
+          size: extent ?? const CircularLoader().size,
         );
       case LoaderType.dots:
         return DotsLoader(
           color: color ?? const DotsLoader().color,
-          size: size ?? const DotsLoader().size,
+          size: extent ?? const DotsLoader().size,
         );
       case LoaderType.pulse:
         return PulseLoader(
           color: color ?? const PulseLoader().color,
-          size: size ?? const PulseLoader().size,
+          size: extent ?? const PulseLoader().size,
         );
       case LoaderType.ripple:
         return RippleLoader(
           color: color ?? const RippleLoader().color,
-          size: size ?? const RippleLoader().size,
+          size: extent ?? const RippleLoader().size,
         );
       case LoaderType.bars:
         return BarsLoader(
           color: color ?? const BarsLoader().color,
-          size: size ?? const BarsLoader().size,
+          size: extent ?? const BarsLoader().size,
         );
       case LoaderType.cube:
         return CubeLoader(
           color: color ?? const CubeLoader().color,
-          size: size ?? const CubeLoader().size,
+          size: extent ?? const CubeLoader().size,
         );
       case LoaderType.ring:
         return RingLoader(
           color: color ?? const RingLoader().color,
-          size: size ?? const RingLoader().size,
+          size: extent ?? const RingLoader().size,
         );
       case LoaderType.gradientSpinner:
         return GradientSpinnerLoader(
           color: color ?? const GradientSpinnerLoader().color,
-          size: size ?? const GradientSpinnerLoader().size,
+          size: extent ?? const GradientSpinnerLoader().size,
         );
       case LoaderType.minimalSpinner:
         return MinimalSpinnerLoader(
           color: color ?? const MinimalSpinnerLoader().color,
-          size: size ?? const MinimalSpinnerLoader().size,
+          size: extent ?? const MinimalSpinnerLoader().size,
         );
       case LoaderType.materialSpinner:
         return MaterialSpinnerLoader(
           color: color ?? const MaterialSpinnerLoader().color,
-          size: size ?? const MaterialSpinnerLoader().size,
+          size: extent ?? const MaterialSpinnerLoader().size,
         );
       case LoaderType.cupertinoSpinner:
         return CupertinoSpinnerLoader(
-          size: size ?? const CupertinoSpinnerLoader().size,
+          size: extent ?? const CupertinoSpinnerLoader().size,
           color: color,
         );
     }

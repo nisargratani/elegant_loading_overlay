@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../constants/defaults.dart';
+import 'loader_extent.dart';
 
 /// A Material Design spinner loading indicator.
 ///
@@ -35,7 +36,8 @@ class MaterialSpinnerLoader extends StatelessWidget {
     this.strokeWidth = 3.0,
   });
 
-  /// The size (width and height) of the spinner.
+  /// The size (width and height) of the spinner. A negative size draws
+  /// nothing.
   final double size;
 
   /// The color of the spinner.
@@ -46,7 +48,7 @@ class MaterialSpinnerLoader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox.square(
-        dimension: size,
+        dimension: loaderExtent(size),
         child: CircularProgressIndicator(
           valueColor: AlwaysStoppedAnimation<Color>(color),
           strokeWidth: strokeWidth,
